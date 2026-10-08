@@ -301,6 +301,27 @@ def answer_for(answers, label):
     return value if value in ANSWER_OPTIONS else "未回答"
 
 
+SESSION_PARTS = [("前半", "13:30〜14:30"), ("後半", "14:30〜15:30")]
+
+
+def part_column(label, part):
+    return f"{label}｜{part}"
+
+
+def aggregate_parts(values):
+    for answer in ["未回答", "〇 (参加)", "△ (未定)"]:
+        if answer in values:
+            return answer
+    return "× (欠席)"
+
+
+def activity_pending(row, answers):
+    if row.get("kind") == "セッション":
+        return any(answer_for(answers, part_column(row["label"], part)) == "未回答"
+                   for part, _ in SESSION_PARTS)
+    return answer_for(answers, row["label"]) == "未回答"
+
+
 def show_activity(row, answers=None):
     details = [f"活動日：{row['day'].isoformat()}" if row["day"] else "活動年未登録（運営に確認してください）"]
     if row["deadline"]:
@@ -308,7 +329,9 @@ def show_activity(row, answers=None):
     else:
         details.append("回答期限：未設定")
     if answers is not None:
-        answer = answer_for(answers, row["label"])
+        answer = (aggregate_parts([answer_for(answers, part_column(row["label"], part))
+                                  for part, _ in SESSION_PARTS]) if row.get("kind") == "セッション"
+                  else answer_for(answers, row["label"]))
         details.append("未回答" if answer == "未回答" else f"回答済み：{answer}")
     with st.container(border=True):
         st.write(activity_title(row["label"]))
@@ -404,7 +427,14 @@ def show_activity_details(label):
         latest = schedule.drop_duplicates("名前", keep="last")
         members = load_csv(CSV_MEMBERS)
         latest = latest[latest["名前"].isin(members["名前"])]
-        names = latest.loc[latest[label] == "〇 (参加)", "名前"].dropna().astype(str).tolist()
+        if row.get("kind") == "セッション":
+            for record in latest.to_dict("records"):
+                parts = [part for part, _ in SESSION_PARTS
+                         if answer_for(record, part_column(label, part)) == "〇 (参加)"]
+                if parts and not pd.isna(record.get("名前")):
+                    names.append(f"{record['名前']}（{'・'.join(parts)}）")
+        else:
+            names = latest.loc[latest[label] == "〇 (参加)", "名前"].dropna().astype(str).tolist()
     st.subheader(f"参加予定者（{len(names)}人）")
     if names:
         st.text("、".join(names))
@@ -611,7 +641,7 @@ else:
     upcoming = [r for r in activities if r["day"] and r["day"] >= today]
     undated = [r for r in activities if r["day"] is None]
     pending = [] if st.session_state.is_super else [
-        r for r in upcoming + undated if answer_for(answers, r["label"]) == "未回答"]
+        r for r in upcoming + undated if activity_pending(r, answers)]
     if pending:
         st.markdown("""
         <style>
@@ -715,8 +745,22 @@ else:
                 for row in activities:
                     show_activity(row, answers)
                     label = row["label"]
-                    edits[label] = st.selectbox("出欠を選んでください", ANSWER_OPTIONS,
-                        index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
+                    if row.get("kind") == "セッション":
+                        if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
+                            st.caption("以前の回答があります。前半・後半それぞれの出欠を確認してください。")
+                        for part, hours in SESSION_PARTS:
+                            column = part_column(label, part)
+                            edits[column] = st.selectbox(f"{part}（{hours}）", ANSWER_OPTIONS,
+                                index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
+                        edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
+                    else:
+                        edits[label] = st.selectbox("出欠を選んでください", ANSWER_OPTIONS,
+                            index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
+                    comment_column = f"{label}｜コメント"
+                    saved_comment = answers.get(comment_column, "")
+                    edits[comment_column] = st.text_input("一言コメント（任意）",
+                        value="" if pd.isna(saved_comment) else str(saved_comment),
+                        key=f"comment_{label}", max_chars=200)
                 submitted = st.form_submit_button("回答を保存する", type="primary", width="stretch")
             if submitted:
                 # 再読込して自分の回答列のみを更新し、既存の回答列も保持する。
@@ -963,8 +1007,11 @@ else:
                         target_dates_df.to_csv(CSV_DATES, index=False)
                         
                         df_schedule = load_csv(CSV_SCHEDULE)
-                        if date_to_delete in df_schedule.columns:
-                            df_schedule = df_schedule.drop(columns=[date_to_delete])
+                        related_columns = [date_to_delete, f"{date_to_delete}｜コメント"] + [
+                            part_column(date_to_delete, part) for part, _ in SESSION_PARTS]
+                        present_columns = [column for column in related_columns if column in df_schedule.columns]
+                        if present_columns:
+                            df_schedule = df_schedule.drop(columns=present_columns)
                             df_schedule.to_csv(CSV_SCHEDULE, index=False)
                         
                         st.success(f"日程「{date_to_delete}」を削除しました。")
