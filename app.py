@@ -112,6 +112,14 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 [data-testid="stAppDeployButton"], #MainMenu,
 [data-testid="stAppViewerBadge"], [class*="viewerBadge"],
 [class*="ViewerBadge"], footer { display: none !important; }
+[data-testid="stStatusWidget"], [data-testid="stMainMenu"],
+[data-testid="stGithubIcon"], [data-testid="stGitHubIcon"],
+[data-testid="stHostedAppBadge"], [class*="_viewerBadge"],
+.stApp a[href^="https://github.com/"][target="_blank"]:has(svg) { display: none !important; }
+.st-key-shift_answers [data-testid="stExpander"] { border-radius: 6px; }
+.st-key-shift_answers [data-testid="stVerticalBlock"] { gap: .5rem; }
+.st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .5rem !important; }
+.st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stColumn"] { min-width: 0 !important; width: 50% !important; flex: 1 1 0 !important; }
 @media (max-width: 640px) {
     [data-testid="stMainBlockContainer"] { padding-top: 1.5rem; }
     .spark-welcome { padding: 1.3rem; }
@@ -739,29 +747,46 @@ else:
                 st.error(f"未回答：あと{len(pending)}件")
             else:
                 st.success("今後の活動へのシフト提出は完了しています。")
-            st.caption("出欠を選び、最後に「回答を保存する」を押してください。")
+            st.caption("予定を開いて回答し、保存してください。")
+            include_past = st.toggle("過去の予定も表示", key="shift_include_past")
+            visible_activities = activities if include_past else upcoming + undated
+            visible_activities = sorted(visible_activities, key=lambda row: not activity_pending(row, answers))
+            if not visible_activities:
+                info_message("今後の回答対象はありません。")
             with st.form("shift_answers"):
+                submitted_top = st.form_submit_button("回答を保存する", type="primary", width="stretch",
+                                                      key="shift_save_top", disabled=not visible_activities)
                 edits = {}
-                for row in activities:
-                    show_activity(row, answers)
+                for row_index, row in enumerate(visible_activities):
                     label = row["label"]
-                    if row.get("kind") == "セッション":
-                        if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
-                            st.caption("以前の回答があります。前半・後半それぞれの出欠を確認してください。")
-                        for part, hours in SESSION_PARTS:
-                            column = part_column(label, part)
-                            edits[column] = st.selectbox(f"{part}（{hours}）", ANSWER_OPTIONS,
-                                index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
-                        edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
-                    else:
-                        edits[label] = st.selectbox("出欠を選んでください", ANSWER_OPTIONS,
-                            index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
-                    comment_column = f"{label}｜コメント"
-                    saved_comment = answers.get(comment_column, "")
-                    edits[comment_column] = st.text_input("一言コメント（任意）",
-                        value="" if pd.isna(saved_comment) else str(saved_comment),
-                        key=f"comment_{label}", max_chars=200)
-                submitted = st.form_submit_button("回答を保存する", type="primary", width="stretch")
+                    day_label = f"{row['day'].month}/{row['day'].day}" if row["day"] else "日付確認中"
+                    status = "未回答" if activity_pending(row, answers) else "回答済み"
+                    with st.expander(f"{day_label}　{activity_title(label)}　｜{status}", expanded=row_index == 0):
+                        if row["deadline"]:
+                            st.caption(f"回答期限：{row['deadline'].month}/{row['deadline'].day}")
+                        if row.get("kind") == "セッション":
+                            if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
+                                st.caption("以前の回答を、前半・後半ごとに再確認してください。")
+                            with st.container(key=f"shift-parts-{hashlib.sha256(label.encode()).hexdigest()[:16]}"):
+                                for panel, (part, hours) in zip(st.columns(2), SESSION_PARTS):
+                                    with panel:
+                                        column = part_column(label, part)
+                                        edits[column] = st.selectbox(part, ANSWER_OPTIONS,
+                                            index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
+                                        st.caption(hours)
+                            edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
+                        else:
+                            st.caption(activity_time(label))
+                            edits[label] = st.selectbox("出欠", ANSWER_OPTIONS,
+                                index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
+                        comment_column = f"{label}｜コメント"
+                        saved_comment = answers.get(comment_column, "")
+                        edits[comment_column] = st.text_input("一言コメント（任意）",
+                            value="" if pd.isna(saved_comment) else str(saved_comment),
+                            key=f"comment_{label}", max_chars=200)
+                submitted_bottom = st.form_submit_button("回答を保存する", type="primary", width="stretch",
+                                                         key="shift_save_bottom", disabled=not visible_activities)
+                submitted = submitted_top or submitted_bottom
             if submitted:
                 # 再読込して自分の回答列のみを更新し、既存の回答列も保持する。
                 df = load_csv(CSV_SCHEDULE)
