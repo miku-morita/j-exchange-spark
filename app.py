@@ -117,6 +117,12 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 [data-testid="stHostedAppBadge"], [class*="_viewerBadge"],
 .stApp a[href^="https://github.com/"][target="_blank"]:has(svg) { display: none !important; }
 .st-key-shift_answers [data-testid="stExpander"] { border-radius: 6px; }
+[class*="st-key-shift-event-session-"] { --shift-color: #e8f3eb; --shift-border: #8caf98; }
+[class*="st-key-shift-event-online-"] { --shift-color: #edf4df; --shift-border: #a6b884; }
+[class*="st-key-shift-event-offline-"] { --shift-color: #eee9f7; --shift-border: #ad9ac6; }
+[class*="st-key-shift-event-other-"] { --shift-color: #faf0e3; --shift-border: #c9ab87; }
+[class*="st-key-shift-event-"] [data-testid="stExpander"] { border-left: 4px solid var(--shift-border); }
+[class*="st-key-shift-event-"] [data-testid="stExpander"] summary { background: var(--shift-color); border-radius: 4px; }
 .st-key-shift_answers [data-testid="stVerticalBlock"] { gap: .5rem; }
 .st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .5rem !important; }
 .st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stColumn"] { min-width: 0 !important; width: 50% !important; flex: 1 1 0 !important; }
@@ -366,9 +372,13 @@ def profile_missing_fields(member):
     return missing
 
 
-def event_button(row, prefix):
+def event_tone(row):
     palette = {"セッション": "session", "オンライン会議": "online", "オフライン会議": "offline"}
-    tone = palette.get(row.get("kind"), "other")
+    return palette.get(row.get("kind"), "other")
+
+
+def event_button(row, prefix):
+    tone = event_tone(row)
     identifier = hashlib.sha256(row["label"].encode("utf-8")).hexdigest()[:16]
     with st.container(key=f"event-{tone}-{prefix}-{identifier}"):
         if st.button(activity_title(row["label"]), key=f"{prefix}-event-{row['label']}",
@@ -760,30 +770,32 @@ else:
                 for row_index, row in enumerate(visible_activities):
                     label = row["label"]
                     day_label = f"{row['day'].month}/{row['day'].day}" if row["day"] else "日付確認中"
-                    status = "未回答" if activity_pending(row, answers) else "回答済み"
-                    with st.expander(f"{day_label}　{activity_title(label)}　｜{status}", expanded=row_index == 0):
-                        if row["deadline"]:
-                            st.caption(f"回答期限：{row['deadline'].month}/{row['deadline'].day}")
-                        if row.get("kind") == "セッション":
-                            if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
-                                st.caption("以前の回答を、前半・後半ごとに再確認してください。")
-                            with st.container(key=f"shift-parts-{hashlib.sha256(label.encode()).hexdigest()[:16]}"):
-                                for panel, (part, hours) in zip(st.columns(2), SESSION_PARTS):
-                                    with panel:
-                                        column = part_column(label, part)
-                                        edits[column] = st.selectbox(part, ANSWER_OPTIONS,
-                                            index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
-                                        st.caption(hours)
-                            edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
-                        else:
-                            st.caption(activity_time(label))
-                            edits[label] = st.selectbox("出欠", ANSWER_OPTIONS,
-                                index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
-                        comment_column = f"{label}｜コメント"
-                        saved_comment = answers.get(comment_column, "")
-                        edits[comment_column] = st.text_input("一言コメント（任意）",
-                            value="" if pd.isna(saved_comment) else str(saved_comment),
-                            key=f"comment_{label}", max_chars=200)
+                    status = "🔴 未" if activity_pending(row, answers) else "✓ 済"
+                    identifier = hashlib.sha256(label.encode()).hexdigest()[:16]
+                    with st.container(key=f"shift-event-{event_tone(row)}-{identifier}"):
+                        with st.expander(f"{status}　{day_label}　{activity_title(label)}", expanded=row_index == 0):
+                            if row["deadline"]:
+                                st.caption(f"回答期限：{row['deadline'].month}/{row['deadline'].day}")
+                            if row.get("kind") == "セッション":
+                                if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
+                                    st.caption("以前の回答を、前半・後半ごとに再確認してください。")
+                                with st.container(key=f"shift-parts-{hashlib.sha256(label.encode()).hexdigest()[:16]}"):
+                                    for panel, (part, hours) in zip(st.columns(2), SESSION_PARTS):
+                                        with panel:
+                                            column = part_column(label, part)
+                                            edits[column] = st.selectbox(part, ANSWER_OPTIONS,
+                                                index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
+                                            st.caption(hours)
+                                edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
+                            else:
+                                st.caption(activity_time(label))
+                                edits[label] = st.selectbox("出欠", ANSWER_OPTIONS,
+                                    index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
+                            comment_column = f"{label}｜コメント"
+                            saved_comment = answers.get(comment_column, "")
+                            edits[comment_column] = st.text_input("一言コメント（任意）",
+                                value="" if pd.isna(saved_comment) else str(saved_comment),
+                                key=f"comment_{label}", max_chars=200)
                 submitted_bottom = st.form_submit_button("回答を保存する", type="primary", width="stretch",
                                                          key="shift_save_bottom", disabled=not visible_activities)
                 submitted = submitted_top or submitted_bottom
