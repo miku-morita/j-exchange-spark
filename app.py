@@ -90,6 +90,8 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-activity-calendar .stButton button:hover { background: #d7eddf; }
 .st-key-activity-calendar .stButton button p { font-size: clamp(.65rem, 1vw, .82rem); line-height: 1.25; overflow-wrap: anywhere; }
 .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .68rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+.calendar-event-time { color: #526158; font-size: .68rem; line-height: 1.2; }
+.calendar-event-time .mobile-time { display: none; }
 [class*="st-key-event-online-"] .stButton button { background: #edf4df; color: #526337; border-left-color: #a6b884; }
 [class*="st-key-event-offline-"] .stButton button { background: #eee9f7; color: #57446e; border-left-color: #ad9ac6; }
 [class*="st-key-event-other-"] .stButton button { background: #faf0e3; color: #775332; border-left-color: #c9ab87; }
@@ -113,6 +115,16 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
     .st-key-page [role="radiogroup"] > label { padding: .65rem .75rem; }
     .st-key-activity-calendar [class*="st-key-calendar-day-"] { min-height: 68px; padding: .2rem; }
     .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .6rem; }
+    .st-key-activity-calendar .calendar-date { font-size: .75rem; }
+    .st-key-activity-calendar .stButton button { min-height: 36px; padding: .2rem .1rem; }
+    .st-key-activity-calendar .stButton button p {
+        font-size: .7rem; line-height: 1.3; display: -webkit-box;
+        -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+        overflow: hidden; max-height: 2.6em; text-align: left;
+    }
+    .calendar-event-time { font-size: .65rem; white-space: nowrap; }
+    .calendar-event-time .desktop-time { display: none; }
+    .calendar-event-time .mobile-time { display: inline; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -326,7 +338,13 @@ def event_button(row, prefix):
         if st.button(activity_title(row["label"]), key=f"{prefix}-event-{row['label']}",
                      help="参加予定者・共有メモを見る", width="stretch"):
             st.session_state.selected_activity = row["label"]
-        st.caption(activity_time(row["label"]))
+        event_time = activity_time(row["label"])
+        if prefix == "calendar":
+            short_time = event_time.split("〜")[0] if "〜" in event_time else "未定"
+            st.markdown(f'<div class="calendar-event-time"><span class="desktop-time">{event_time}</span>'
+                        f'<span class="mobile-time">{short_time}</span></div>', unsafe_allow_html=True)
+        else:
+            st.caption(event_time)
 
 
 def change_calendar_month(offset):
@@ -468,7 +486,7 @@ if not st.session_state.logged_in:
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
-        input_email = st.text_input("メールアドレス（@より前）", placeholder="例：k123456",
+        input_email = st.text_input("利用者ID", placeholder="例：k123456",
                                    help="@kansai-u.ac.jp は自動で補います。統括管理者は「統括」と入力してください。")
         input_pass = st.text_input("パスワード", type="password")
         
@@ -521,7 +539,7 @@ if not st.session_state.logged_in:
                             else:
                                 st.error("⚠️ パスワードが違います。")
             else:
-                st.error("メールアドレスとパスワードの両方を入力してください。")
+                st.error("利用者IDとパスワードを入力してください。")
 
 # ==========================================
 # 3. 初回パスワード変更画面（強制）
