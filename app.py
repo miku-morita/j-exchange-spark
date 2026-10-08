@@ -77,14 +77,14 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-activity-calendar [data-testid="stVerticalBlock"] { gap: .2rem; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"] { min-height: 88px; height: 100%; border: 0; border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; border-radius: 0 !important; padding: .35rem; box-sizing: border-box; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"] > div { border-radius: 0 !important; }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ef; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ff; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-sunday"],
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-holiday"] { background: #fff2f2; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-outside"] { background: #f6f7f6; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-today"] { box-shadow: inset 0 0 0 2px #14532d; }
 .calendar-weekday { text-align: center; font-weight: 600; background: #f4f7f5; padding: .35rem 0; border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; }
 .calendar-date { color: #24352c; font-size: .85rem; font-weight: 600; line-height: 1.25; }
-.calendar-green { color: #4d735c; }
+.calendar-blue { color: #225ca2; }
 .calendar-red { color: #b32632; }
 .st-key-activity-calendar .stButton button { background: #e8f5ec; color: #195b33; border: 0; border-left: 2px solid #14532d; border-radius: 0; min-height: 28px; padding: .2rem; }
 .st-key-activity-calendar .stButton button:hover { background: #d7eddf; }
@@ -92,12 +92,12 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .68rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
 .calendar-event-time { color: #526158; font-size: .68rem; line-height: 1.2; }
 .calendar-event-time .mobile-time { display: none; }
-[class*="st-key-event-online-"] .stButton button { background: #edf4df; color: #526337; border-left-color: #a6b884; }
-[class*="st-key-event-offline-"] .stButton button { background: #eee9f7; color: #57446e; border-left-color: #ad9ac6; }
-[class*="st-key-event-other-"] .stButton button { background: #faf0e3; color: #775332; border-left-color: #c9ab87; }
+[class*="st-key-event-online-"] .stButton button { background: #f0ebfa; color: #624b82; border-left-color: #b9a5d8; }
+[class*="st-key-event-offline-"] .stButton button { background: #d6c5eb; color: #45305e; border-left-color: #8566ac; }
+[class*="st-key-event-other-"] .stButton button { background: #eef0f2; color: #4c535c; border-left-color: #a4aab2; }
 [class*="st-key-event-session-"] .stButton button { background: #e8f3eb; color: #315b40; border-left-color: #8caf98; }
 [class*="st-key-event-"] .stButton button:hover { filter: brightness(.96); }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ef; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ff; }
 [class*="st-key-notice-"] { background: #f0f7f1; border-left: 3px solid #91af98; padding: .6rem .8rem; }
 .st-key-month-nav [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .35rem !important; }
 .st-key-month-nav [data-testid="stColumn"] { min-width: 0 !important; width: 33.333% !important; flex: 1 1 0 !important; }
@@ -118,9 +118,9 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .stApp a[href^="https://github.com/"][target="_blank"]:has(svg) { display: none !important; }
 .st-key-shift_answers [data-testid="stExpander"] { border-radius: 6px; }
 [class*="st-key-shift-event-session-"] { --shift-color: #e8f3eb; --shift-border: #8caf98; }
-[class*="st-key-shift-event-online-"] { --shift-color: #edf4df; --shift-border: #a6b884; }
-[class*="st-key-shift-event-offline-"] { --shift-color: #eee9f7; --shift-border: #ad9ac6; }
-[class*="st-key-shift-event-other-"] { --shift-color: #faf0e3; --shift-border: #c9ab87; }
+[class*="st-key-shift-event-online-"] { --shift-color: #f0ebfa; --shift-border: #b9a5d8; }
+[class*="st-key-shift-event-offline-"] { --shift-color: #d6c5eb; --shift-border: #8566ac; }
+[class*="st-key-shift-event-other-"] { --shift-color: #eef0f2; --shift-border: #a4aab2; }
 [class*="st-key-shift-event-"] [data-testid="stExpander"] { border-left: 4px solid var(--shift-border); }
 [class*="st-key-shift-event-"] [data-testid="stExpander"] summary { background: var(--shift-color); border-radius: 4px; }
 .st-key-shift_answers [data-testid="stVerticalBlock"] { gap: .5rem; }
@@ -336,6 +336,32 @@ def activity_pending(row, answers):
     return answer_for(answers, row["label"]) == "未回答"
 
 
+def show_saved_shifts(activities, answers):
+    found = False
+    for row in activities:
+        label = row["label"]
+        columns = [label] + [part_column(label, part) for part, _ in SESSION_PARTS]
+        comment = answers.get(f"{label}｜コメント", "")
+        comment = "" if pd.isna(comment) else str(comment)
+        if not any(answer_for(answers, column) != "未回答" for column in columns) and not comment:
+            continue
+        found = True
+        day = row["day"].strftime("%Y/%m/%d") if row["day"] else "日付確認中"
+        identifier = hashlib.sha256(label.encode()).hexdigest()[:16]
+        with st.container(key=f"shift-event-{event_tone(row)}-review-{identifier}"):
+            with st.expander(f"{day}　{activity_title(label)}"):
+                if row.get("kind") == "セッション" and any(part_column(label, part) in answers for part, _ in SESSION_PARTS):
+                    for part, hours in SESSION_PARTS:
+                        st.write(f"{part}（{hours}）：{answer_for(answers, part_column(label, part))}")
+                else:
+                    st.caption(activity_time(label))
+                    st.write(f"出欠：{answer_for(answers, label)}")
+                if comment:
+                    st.text(f"コメント：{comment}")
+    if not found:
+        info_message("提出済みのシフトはありません。")
+
+
 def show_activity(row, answers=None):
     details = [f"活動日：{row['day'].isoformat()}" if row["day"] else "活動年未登録（運営に確認してください）"]
     if row["deadline"]:
@@ -484,7 +510,7 @@ def show_calendar(month, activities, today):
     st.subheader(f"{month.year}年{month.month}月")
     with st.container(key="activity-calendar"):
         for weekday_index, (column, weekday) in enumerate(zip(st.columns(7, gap=None), ["月", "火", "水", "木", "金", "土", "日"])):
-            color = "calendar-green" if weekday_index == 5 else "calendar-red" if weekday_index == 6 else ""
+            color = "calendar-blue" if weekday_index == 5 else "calendar-red" if weekday_index == 6 else ""
             column.markdown(f'<div class="calendar-weekday {color}">{weekday}</div>', unsafe_allow_html=True)
         for week_index, week in enumerate(calendar.Calendar().monthdayscalendar(month.year, month.month)):
             for column_index, (column, number) in enumerate(zip(st.columns(7, gap=None), week)):
@@ -497,7 +523,7 @@ def show_calendar(month, activities, today):
                         if not number:
                             st.write(" ")
                             continue
-                        color = "calendar-red" if holiday or column_index == 6 else "calendar-green" if column_index == 5 else ""
+                        color = "calendar-red" if holiday or column_index == 6 else "calendar-blue" if column_index == 5 else ""
                         marker = "・祝" if holiday else ""
                         st.markdown(f'<div class="calendar-date {color}">{number}{marker}</div>', unsafe_allow_html=True)
                         for row in by_day.get(number, []):
@@ -757,63 +783,65 @@ else:
                 st.error(f"未回答：あと{len(pending)}件")
             else:
                 st.success("今後の活動へのシフト提出は完了しています。")
-            st.caption("予定を開いて回答し、保存してください。")
-            include_past = st.toggle("過去の予定も表示", key="shift_include_past")
-            visible_activities = activities if include_past else upcoming + undated
-            visible_activities = sorted(visible_activities, key=lambda row: not activity_pending(row, answers))
-            if not visible_activities:
-                info_message("今後の回答対象はありません。")
-            with st.form("shift_answers"):
-                submitted_top = st.form_submit_button("回答を保存する", type="primary", width="stretch",
-                                                      key="shift_save_top", disabled=not visible_activities)
-                edits = {}
-                for row_index, row in enumerate(visible_activities):
-                    label = row["label"]
-                    day_label = f"{row['day'].month}/{row['day'].day}" if row["day"] else "日付確認中"
-                    status = "🔴 未" if activity_pending(row, answers) else "✓ 済"
-                    identifier = hashlib.sha256(label.encode()).hexdigest()[:16]
-                    with st.container(key=f"shift-event-{event_tone(row)}-{identifier}"):
-                        with st.expander(f"{status}　{day_label}　{activity_title(label)}", expanded=row_index == 0):
-                            if row["deadline"]:
-                                st.caption(f"回答期限：{row['deadline'].month}/{row['deadline'].day}")
-                            if row.get("kind") == "セッション":
-                                if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
-                                    st.caption("以前の回答を、前半・後半ごとに再確認してください。")
-                                with st.container(key=f"shift-parts-{hashlib.sha256(label.encode()).hexdigest()[:16]}"):
-                                    for panel, (part, hours) in zip(st.columns(2), SESSION_PARTS):
-                                        with panel:
-                                            column = part_column(label, part)
-                                            edits[column] = st.selectbox(part, ANSWER_OPTIONS,
-                                                index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
-                                            st.caption(hours)
-                                edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
-                            else:
-                                st.caption(activity_time(label))
-                                edits[label] = st.selectbox("出欠", ANSWER_OPTIONS,
-                                    index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
-                            comment_column = f"{label}｜コメント"
-                            saved_comment = answers.get(comment_column, "")
-                            edits[comment_column] = st.text_input("一言コメント（任意）",
-                                value="" if pd.isna(saved_comment) else str(saved_comment),
-                                key=f"comment_{label}", max_chars=200)
-                submitted_bottom = st.form_submit_button("回答を保存する", type="primary", width="stretch",
-                                                         key="shift_save_bottom", disabled=not visible_activities)
-                submitted = submitted_top or submitted_bottom
-            if submitted:
-                # 再読込して自分の回答列のみを更新し、既存の回答列も保持する。
-                df = load_csv(CSV_SCHEDULE)
-                if df.empty:
-                    df = pd.DataFrame(columns=["更新日時", "名前"])
-                mask = df["名前"] == st.session_state.user_name
-                record = df[mask].iloc[-1].to_dict() if mask.any() else {}
-                record.update(edits)
-                record.update({"名前": st.session_state.user_name, "更新日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-                df = pd.concat([df[~mask], pd.DataFrame([record])], ignore_index=True)
-                df.to_csv(CSV_SCHEDULE, index=False)
-                st.session_state.shift_saved = True
-                st.rerun()
-            if st.session_state.pop("shift_saved", False):
-                st.success("回答を保存しました。")
+            if st.toggle("提出済みのシフトを確認", key="shift_review"):
+                show_saved_shifts(activities, answers)
+            else:
+                st.caption("予定を開いて回答し、保存してください。")
+                include_past = st.toggle("過去の予定も表示", key="shift_include_past")
+                visible_activities = activities if include_past else upcoming + undated
+                if not visible_activities:
+                    info_message("今後の回答対象はありません。")
+                with st.form("shift_answers"):
+                    submitted_top = st.form_submit_button("回答を保存する", type="primary", width="stretch",
+                                                          key="shift_save_top", disabled=not visible_activities)
+                    edits = {}
+                    for row_index, row in enumerate(visible_activities):
+                        label = row["label"]
+                        day_label = f"{row['day'].month}/{row['day'].day}" if row["day"] else "日付確認中"
+                        status = "🔴 未" if activity_pending(row, answers) else "✓ 済"
+                        identifier = hashlib.sha256(label.encode()).hexdigest()[:16]
+                        with st.container(key=f"shift-event-{event_tone(row)}-{identifier}"):
+                            with st.expander(f"{status}　{day_label}　{activity_title(label)}", expanded=row_index == 0):
+                                if row["deadline"]:
+                                    st.caption(f"回答期限：{row['deadline'].month}/{row['deadline'].day}")
+                                if row.get("kind") == "セッション":
+                                    if not any(part_column(label, part) in answers for part, _ in SESSION_PARTS) and answer_for(answers, label) != "未回答":
+                                        st.caption("以前の回答を、前半・後半ごとに再確認してください。")
+                                    with st.container(key=f"shift-parts-{hashlib.sha256(label.encode()).hexdigest()[:16]}"):
+                                        for panel, (part, hours) in zip(st.columns(2), SESSION_PARTS):
+                                            with panel:
+                                                column = part_column(label, part)
+                                                edits[column] = st.selectbox(part, ANSWER_OPTIONS,
+                                                    index=ANSWER_OPTIONS.index(answer_for(answers, column)), key=f"answer_{column}")
+                                                st.caption(hours)
+                                    edits[label] = aggregate_parts([edits[part_column(label, part)] for part, _ in SESSION_PARTS])
+                                else:
+                                    st.caption(activity_time(label))
+                                    edits[label] = st.selectbox("出欠", ANSWER_OPTIONS,
+                                        index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
+                                comment_column = f"{label}｜コメント"
+                                saved_comment = answers.get(comment_column, "")
+                                edits[comment_column] = st.text_input("一言コメント（任意）",
+                                    value="" if pd.isna(saved_comment) else str(saved_comment),
+                                    key=f"comment_{label}", max_chars=200)
+                    submitted_bottom = st.form_submit_button("回答を保存する", type="primary", width="stretch",
+                                                             key="shift_save_bottom", disabled=not visible_activities)
+                    submitted = submitted_top or submitted_bottom
+                if submitted:
+                    # 再読込して自分の回答列のみを更新し、既存の回答列も保持する。
+                    df = load_csv(CSV_SCHEDULE)
+                    if df.empty:
+                        df = pd.DataFrame(columns=["更新日時", "名前"])
+                    mask = df["名前"] == st.session_state.user_name
+                    record = df[mask].iloc[-1].to_dict() if mask.any() else {}
+                    record.update(edits)
+                    record.update({"名前": st.session_state.user_name, "更新日時": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+                    df = pd.concat([df[~mask], pd.DataFrame([record])], ignore_index=True)
+                    df.to_csv(CSV_SCHEDULE, index=False)
+                    st.session_state.shift_saved = True
+                    st.rerun()
+                if st.session_state.pop("shift_saved", False):
+                    st.success("回答を保存しました。")
 
     # --- 👤 ユーザー画面（マイページ） ---
     elif view_mode == "👤 マイページ":
