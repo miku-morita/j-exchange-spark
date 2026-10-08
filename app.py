@@ -89,6 +89,11 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-activity-calendar .stButton button:hover { background: #d7eddf; }
 .st-key-activity-calendar .stButton button p { font-size: clamp(.65rem, 1vw, .82rem); line-height: 1.25; overflow-wrap: anywhere; }
 .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .68rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+[class*="st-key-event-online-"] .stButton button { background: #e6f0fa; color: #284d72; border-left-color: #829fbd; }
+[class*="st-key-event-offline-"] .stButton button { background: #eee9f7; color: #57446e; border-left-color: #ad9ac6; }
+[class*="st-key-event-other-"] .stButton button { background: #faf0e3; color: #775332; border-left-color: #c9ab87; }
+[class*="st-key-event-session-"] .stButton button { background: #e8f3eb; color: #315b40; border-left-color: #8caf98; }
+[class*="st-key-event-"] .stButton button:hover { filter: brightness(.96); }
 @media (max-width: 900px) {
     .st-key-calendar-layout > [data-testid="stHorizontalBlock"] { flex-direction: column; }
     .st-key-calendar-layout > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width: 100% !important; flex: 1 1 auto !important; }
@@ -232,7 +237,12 @@ def activity_rows():
         match = re.search(r"(\d+)月(\d+)日.*?(\d{2}:\d{2})", label)
         legacy_order = (int(match[1]), int(match[2]), match[3]) if match else (13, 32, "")
         memo = record.get("共有メモ", "")
+        kind = record.get("イベント種類", "")
+        if pd.isna(kind) or not str(kind).strip():
+            title = activity_title(label)
+            kind = title if title in ["セッション", "オンライン会議", "オフライン会議"] else "その他（自由記述）"
         rows.append({"label": label, "day": day, "memo": "" if pd.isna(memo) else str(memo),
+                     "kind": kind,
                      "deadline": read_date(record.get("回答期限")), "order": legacy_order})
     return sorted(rows, key=lambda r: (r["day"] is None, r["day"] or date.max, r["order"]))
 
@@ -267,6 +277,32 @@ def show_activity(row, answers=None):
 
 def go_to_shift():
     st.session_state.page = "📅 シフト"
+
+
+def go_to_profile():
+    st.session_state.page = "👤 マイページ"
+
+
+def profile_missing_fields(member):
+    missing = []
+    for field in ["ふりがな", "役職", "学年", "学部", "学科"]:
+        value = member.get(field, "")
+        if field == "学科" and member.get("学部") == "大学院":
+            continue
+        if pd.isna(value) or not str(value).strip() or str(value) == "選択してください":
+            missing.append(field)
+    return missing
+
+
+def event_button(row, prefix):
+    palette = {"セッション": "session", "オンライン会議": "online", "オフライン会議": "offline"}
+    tone = palette.get(row.get("kind"), "other")
+    identifier = hashlib.sha256(row["label"].encode("utf-8")).hexdigest()[:16]
+    with st.container(key=f"event-{tone}-{prefix}-{identifier}"):
+        if st.button(activity_title(row["label"]), key=f"{prefix}-event-{row['label']}",
+                     help="参加予定者・共有メモを見る", width="stretch"):
+            st.session_state.selected_activity = row["label"]
+        st.caption(activity_time(row["label"]))
 
 
 def change_calendar_month(offset):
@@ -370,10 +406,7 @@ def show_calendar(month, activities, today):
                         marker = "・祝" if holiday else ""
                         st.markdown(f'<div class="calendar-date {color}">{number}{marker}</div>', unsafe_allow_html=True)
                         for row in by_day.get(number, []):
-                            if st.button(activity_title(row["label"]), key=f"calendar-event-{row['label']}",
-                                         help="日時・参加予定者・共有メモを見る", width="stretch"):
-                                st.session_state.selected_activity = row["label"]
-                            st.caption(activity_time(row["label"]))
+                            event_button(row, "calendar")
 
 
 @st.cache_data
@@ -562,6 +595,9 @@ else:
 
     if view_mode == "🏠 ホーム":
         st.title("活動カレンダー")
+        if not st.session_state.is_super and profile_missing_fields(current_user):
+            st.info("初回の方は「自分の登録情報」で、ふりがな〜学科を入力して保存してください。")
+            st.button("自分の登録情報を入力する", on_click=go_to_profile)
         if pending:
             notification, action = st.columns([3, 2])
             notification.error(f"未回答のシフト：あと{len(pending)}件")
@@ -603,10 +639,7 @@ else:
                     if not today_activities:
                         st.write("今日は活動予定がありません。")
                     for row in today_activities:
-                        if st.button(activity_title(row["label"]), key=f"today-event-{row['label']}",
-                                     width="stretch", help="参加予定者・共有メモを見る"):
-                            st.session_state.selected_activity = row["label"]
-                        st.caption(activity_time(row["label"]))
+                        event_button(row, "today")
         if st.session_state.get("selected_activity"):
             show_activity_details(st.session_state.selected_activity)
 
@@ -648,7 +681,7 @@ else:
 
     # --- 👤 ユーザー画面（マイページ） ---
     elif view_mode == "👤 マイページ":
-        st.title("👤 マイページ")
+        st.title("👤 自分の登録情報")
         
         if st.session_state.is_super:
             st.info("統括アカウントには個人プロフィールがありません。「管理」で操作してください。")
@@ -657,6 +690,8 @@ else:
             norm_email = normalize_email(st.session_state.user_email)
             df_members['検索用メール'] = df_members['メールアドレス'].apply(normalize_email)
             user_data = df_members[df_members['検索用メール'] == norm_email].iloc[-1]
+            if profile_missing_fields(user_data):
+                st.info("ふりがな・役職・学年・学部・学科を確認し、「プロフィールを保存する」を押してください。")
             
             def_kana = user_data.get('ふりがな', '') if pd.notna(user_data.get('ふりがな', '')) else ""
             def_role = user_data.get('役職', ROLES[0]) if user_data.get('役職', '') in ROLES else ROLES[0]
@@ -838,7 +873,7 @@ else:
                     
                     target_dates_df = load_csv(CSV_DATES)
                     if new_date_str not in target_dates_df['日程'].values:
-                        new_row = pd.DataFrame({'日程': [new_date_str], '活動日': [selected_date.isoformat()], '回答期限': [deadline.isoformat() if deadline else '']})
+                        new_row = pd.DataFrame({'日程': [new_date_str], '活動日': [selected_date.isoformat()], '回答期限': [deadline.isoformat() if deadline else ''], 'イベント種類': [event_type]})
                         target_dates_df = pd.concat([target_dates_df, new_row], ignore_index=True)
                         target_dates_df.to_csv(CSV_DATES, index=False)
                         
