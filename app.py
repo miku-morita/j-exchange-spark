@@ -292,12 +292,14 @@ def activity_rows():
         match = re.search(r"(\d+)月(\d+)日.*?(\d{2}:\d{2})", label)
         legacy_order = (int(match[1]), int(match[2]), match[3]) if match else (13, 32, "")
         memo = record.get("共有メモ", "")
+        collect = record.get("参加可否を募る")
+        requires_response = True if collect is None or pd.isna(collect) else parse_bool(collect)
         kind = record.get("イベント種類", "")
         if pd.isna(kind) or not str(kind).strip():
             title = activity_title(label)
             kind = title if title in ["セッション", "オンライン会議", "オフライン会議"] else "その他（自由記述）"
         rows.append({"label": label, "day": day, "memo": "" if pd.isna(memo) else str(memo),
-                     "kind": kind,
+                     "kind": kind, "requires_response": requires_response,
                      "deadline": read_date(record.get("回答期限")), "order": legacy_order})
     return sorted(rows, key=lambda r: (r["day"] is None, r["day"] or date.max, r["order"]))
 
@@ -330,6 +332,8 @@ def aggregate_parts(values):
 
 
 def activity_pending(row, answers):
+    if not row.get("requires_response", True):
+        return False
     if row.get("kind") == "セッション":
         return any(answer_for(answers, part_column(row["label"], part)) == "未回答"
                    for part, _ in SESSION_PARTS)
@@ -339,6 +343,8 @@ def activity_pending(row, answers):
 def show_saved_shifts(activities, answers):
     found = False
     for row in activities:
+        if not row.get("requires_response", True):
+            continue
         label = row["label"]
         columns = [label] + [part_column(label, part) for part, _ in SESSION_PARTS]
         comment = answers.get(f"{label}｜コメント", "")
@@ -491,11 +497,14 @@ def show_activity_details(label):
                     names.append(f"{record['名前']}（{'・'.join(parts)}）")
         else:
             names = latest.loc[latest[label] == "〇 (参加)", "名前"].dropna().astype(str).tolist()
-    st.subheader(f"参加予定者（{len(names)}人）")
-    if names:
-        st.text("、".join(names))
+    if not row.get("requires_response", True):
+        st.caption("お知らせ（参加可否の回答は不要です）")
     else:
-        st.write("まだいません")
+        st.subheader(f"参加予定者（{len(names)}人）")
+        if names:
+            st.text("、".join(names))
+        else:
+            st.write("まだいません")
     st.subheader("当日の共有メモ")
     if can_edit_activity_memo():
         with st.form("activity_memo_form"):
@@ -788,7 +797,7 @@ else:
         st.title("📅 シフト提出")
         if st.session_state.is_super:
             info_message("統括アカウントは回答できません。「管理」で回答一覧を確認してください。")
-        elif not activities:
+        elif not any(r.get("requires_response", True) for r in activities):
             info_message("現在、回答できる日程はありません。")
         else:
             if pending:
@@ -800,7 +809,8 @@ else:
             else:
                 st.caption("予定を開いて回答し、保存してください。")
                 include_past = st.toggle("過去の予定も表示", key="shift_include_past")
-                visible_activities = activities if include_past else upcoming + undated
+                visible_activities = [r for r in (activities if include_past else upcoming + undated)
+                                      if r.get("requires_response", True)]
                 if not visible_activities:
                     info_message("今後の回答対象はありません。")
                 with st.form("shift_answers"):
@@ -1034,7 +1044,9 @@ else:
             with col_t2:
                 end_time = st.time_input("終了時間", value=time(17, 0))
             
-            use_deadline = st.checkbox("回答期限を設定する")
+            requires_response = st.checkbox("参加可否を募る", value=True,
+                                             help="オフにすると、お知らせとしてカレンダーに表示します。シフト回答は不要です。")
+            use_deadline = st.checkbox("回答期限を設定する") if requires_response else False
             deadline = st.date_input("回答期限（日付の終わりまで）") if use_deadline else None
 
             if st.button("日程を追加"):
@@ -1051,17 +1063,18 @@ else:
                     
                     target_dates_df = load_csv(CSV_DATES)
                     if new_date_str not in target_dates_df['日程'].values:
-                        new_row = pd.DataFrame({'日程': [new_date_str], '活動日': [selected_date.isoformat()], '回答期限': [deadline.isoformat() if deadline else ''], 'イベント種類': [event_type]})
+                        new_row = pd.DataFrame({'日程': [new_date_str], '活動日': [selected_date.isoformat()], '回答期限': [deadline.isoformat() if deadline else ''], 'イベント種類': [event_type], '参加可否を募る': [requires_response]})
                         target_dates_df = pd.concat([target_dates_df, new_row], ignore_index=True)
                         target_dates_df.to_csv(CSV_DATES, index=False)
                         
                         df_schedule = load_csv(CSV_SCHEDULE)
-                        if not df_schedule.empty:
+                        if requires_response and not df_schedule.empty:
                             df_schedule[new_date_str] = "未回答"
                             df_schedule.to_csv(CSV_SCHEDULE, index=False)
                         
                         app_url = "※ここに公開後のアプリのURLが入ります"
-                        st.session_state.notification_text = f"お疲れ様です！J-EXCHANGE SPARKの新しい日程が追加されました。\n\n対象: {new_date_str}\n\n以下のURLからログインし、シフト・出欠の回答をお願いします！\n{app_url}"
+                        request_text = "シフト・出欠の回答をお願いします！" if requires_response else "お知らせをご確認ください（参加可否の回答は不要です）。"
+                        st.session_state.notification_text = f"お疲れ様です！J-EXCHANGE SPARKの新しい日程が追加されました。\n\n対象: {new_date_str}\n\n以下のURLからログインし、{request_text}\n{app_url}"
                         
                         st.success(f"「{new_date_str}」を追加しました！")
                         st.rerun()
