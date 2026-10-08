@@ -107,6 +107,11 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
     .st-key-calendar-layout > [data-testid="stHorizontalBlock"] { flex-direction: column; }
     .st-key-calendar-layout > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width: 100% !important; flex: 1 1 auto !important; }
 }
+/* PC・スマホ共通：標準ツールバーを隠し、サイドバーの開閉操作を残す。 */
+[data-testid="stToolbar"], [data-testid="stAppToolbar"],
+[data-testid="stAppDeployButton"], #MainMenu,
+[data-testid="stAppViewerBadge"], [class*="viewerBadge"],
+[class*="ViewerBadge"], footer { display: none !important; }
 @media (max-width: 640px) {
     [data-testid="stMainBlockContainer"] { padding-top: 1.5rem; }
     .spark-welcome { padding: 1.3rem; }
