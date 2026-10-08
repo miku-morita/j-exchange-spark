@@ -804,10 +804,13 @@ else:
                 st.divider()
 
             st.write("📅 イベントの種類と日程を設定してください")
-            event_type = st.selectbox("イベントの種類", ["セッション", "定例会議", "オンライン会議", "オフライン会議", "その他（自由記述）"])
+            event_type = st.selectbox("イベントの種類", ["セッション", "オンライン会議", "オフライン会議", "その他（自由記述）"])
             
             event_title = event_type
-            if event_type == "その他（自由記述）":
+            if event_type in ["オンライン会議", "オフライン会議"]:
+                meeting_name = st.text_input("会議名（任意）", placeholder="例：企画ミーティング")
+                event_title = meeting_name.strip() or event_type
+            elif event_type == "その他（自由記述）":
                 event_title = st.text_input("イベントのタイトルを入力してください")
             
             col_d, col_t1, col_t2 = st.columns([2, 1, 1])
