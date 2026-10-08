@@ -17,6 +17,7 @@ st.set_page_config(page_title="J-EXCHANGE SPARK 管理アプリ", layout="wide")
 st.markdown("""
 <style>
 .stApp { background: #ffffff; color: #24352c; }
+.stApp a { color: #14532d; }
 [data-testid="stHeader"] { background: #ffffff; }
 [data-testid="stMainBlockContainer"] { max-width: 100%; padding: 2rem clamp(1rem, 3vw, 3rem) 4rem; }
 [data-testid="stSidebar"] { background: #f4f8f5; border-right: 1px solid #dce9e1; }
@@ -76,24 +77,30 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-activity-calendar [data-testid="stVerticalBlock"] { gap: .2rem; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"] { min-height: 88px; height: 100%; border: 0; border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; border-radius: 0 !important; padding: .35rem; box-sizing: border-box; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"] > div { border-radius: 0 !important; }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ff; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ef; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-sunday"],
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-holiday"] { background: #fff2f2; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-outside"] { background: #f6f7f6; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-today"] { box-shadow: inset 0 0 0 2px #14532d; }
 .calendar-weekday { text-align: center; font-weight: 600; background: #f4f7f5; padding: .35rem 0; border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; }
 .calendar-date { color: #24352c; font-size: .85rem; font-weight: 600; line-height: 1.25; }
-.calendar-blue { color: #225ca2; }
+.calendar-green { color: #4d735c; }
 .calendar-red { color: #b32632; }
 .st-key-activity-calendar .stButton button { background: #e8f5ec; color: #195b33; border: 0; border-left: 2px solid #14532d; border-radius: 0; min-height: 28px; padding: .2rem; }
 .st-key-activity-calendar .stButton button:hover { background: #d7eddf; }
 .st-key-activity-calendar .stButton button p { font-size: clamp(.65rem, 1vw, .82rem); line-height: 1.25; overflow-wrap: anywhere; }
 .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .68rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
-[class*="st-key-event-online-"] .stButton button { background: #e6f0fa; color: #284d72; border-left-color: #829fbd; }
+[class*="st-key-event-online-"] .stButton button { background: #edf4df; color: #526337; border-left-color: #a6b884; }
 [class*="st-key-event-offline-"] .stButton button { background: #eee9f7; color: #57446e; border-left-color: #ad9ac6; }
 [class*="st-key-event-other-"] .stButton button { background: #faf0e3; color: #775332; border-left-color: #c9ab87; }
 [class*="st-key-event-session-"] .stButton button { background: #e8f3eb; color: #315b40; border-left-color: #8caf98; }
 [class*="st-key-event-"] .stButton button:hover { filter: brightness(.96); }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ef; }
+[class*="st-key-notice-"] { background: #f0f7f1; border-left: 3px solid #91af98; padding: .6rem .8rem; }
+.st-key-month-nav [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .35rem !important; }
+.st-key-month-nav [data-testid="stColumn"] { min-width: 0 !important; width: 33.333% !important; flex: 1 1 0 !important; }
+.st-key-month-nav .stButton button { min-height: 34px; padding: .2rem .4rem; }
+.st-key-month-nav .stButton button p { font-size: .8rem; white-space: nowrap; }
 @media (max-width: 900px) {
     .st-key-calendar-layout > [data-testid="stHorizontalBlock"] { flex-direction: column; }
     .st-key-calendar-layout > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width: 100% !important; flex: 1 1 auto !important; }
@@ -177,6 +184,23 @@ def hash_password(password):
 def normalize_email(email):
     """メールアドレスの大文字小文字を統一し、空白を削除する"""
     return str(email).strip().lower()
+
+
+def university_email(value, allow_admin=False):
+    value = normalize_email(value)
+    if allow_admin and value == normalize_email(SUPER_ADMIN_NAME):
+        return value
+    if not value:
+        return ""
+    if "@" not in value:
+        value += "@kansai-u.ac.jp"
+    return value if re.fullmatch(r"[^@\s]+@kansai-u\.ac\.jp", value) else None
+
+
+def info_message(message):
+    key = hashlib.sha256(message.encode("utf-8")).hexdigest()[:16]
+    with st.container(key=f"notice-{key}"):
+        st.markdown(message)
 
 def parse_bool(val):
     """文字列の'False'がTrueにならないように安全にbool変換する"""
@@ -347,7 +371,7 @@ def close_activity_details():
 def show_activity_details(label):
     row = next((r for r in activity_rows() if r["label"] == label), None)
     if row is None:
-        st.info("この予定は削除されています。")
+        info_message("この予定は削除されています。")
         return
     st.subheader(activity_title(label))
     st.caption(activity_time(label))
@@ -389,7 +413,7 @@ def show_calendar(month, activities, today):
     st.subheader(f"{month.year}年{month.month}月")
     with st.container(key="activity-calendar"):
         for weekday_index, (column, weekday) in enumerate(zip(st.columns(7, gap=None), ["月", "火", "水", "木", "金", "土", "日"])):
-            color = "calendar-blue" if weekday_index == 5 else "calendar-red" if weekday_index == 6 else ""
+            color = "calendar-green" if weekday_index == 5 else "calendar-red" if weekday_index == 6 else ""
             column.markdown(f'<div class="calendar-weekday {color}">{weekday}</div>', unsafe_allow_html=True)
         for week_index, week in enumerate(calendar.Calendar().monthdayscalendar(month.year, month.month)):
             for column_index, (column, number) in enumerate(zip(st.columns(7, gap=None), week)):
@@ -402,7 +426,7 @@ def show_calendar(month, activities, today):
                         if not number:
                             st.write(" ")
                             continue
-                        color = "calendar-red" if holiday or column_index == 6 else "calendar-blue" if column_index == 5 else ""
+                        color = "calendar-red" if holiday or column_index == 6 else "calendar-green" if column_index == 5 else ""
                         marker = "・祝" if holiday else ""
                         st.markdown(f'<div class="calendar-date {color}">{number}{marker}</div>', unsafe_allow_html=True)
                         for row in by_day.get(number, []):
@@ -429,26 +453,33 @@ def japan_holidays():
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown("""
+    <style>
+    [data-testid="stMainBlockContainer"] { max-width: 460px; padding: 2rem 1rem 1rem; }
+    .spark-welcome { padding: .65rem 1rem; margin-bottom: .5rem; }
+    .spark-welcome h1 { font-size: 1.3rem !important; }
+    [data-testid="stForm"] { padding: .8rem; }
+    </style>
+    """, unsafe_allow_html=True)
+    st.markdown("""
     <div class="spark-welcome">
         <div class="spark-brand">J-EXCHANGE SPARK</div>
-        <h1>J-EXCHANGE SPARKへようこそ</h1>
-        <p>活動予定の確認も、シフトの回答も。<br>ログインして、次の活動に備えましょう。</p>
+        <h1>ログイン</h1>
     </div>
     """, unsafe_allow_html=True)
-    st.subheader("ログイン")
-    st.caption("運営から案内されたメールアドレス・パスワードでログインしてください。")
-    with st.expander("ログインできない場合"):
-        st.write("パスワードを忘れた方は、統括管理者に連絡してください。")
     
     with st.form("login_form"):
-        input_email = st.text_input("メールアドレス", placeholder="例：name@example.com")
+        input_email = st.text_input("メールアドレス（@より前）", placeholder="例：k123456",
+                                   help="@kansai-u.ac.jp は自動で補います。統括管理者は「統括」と入力してください。")
         input_pass = st.text_input("パスワード", type="password")
         
         login_btn = st.form_submit_button("ログイン", type="primary", width="stretch")
         
         if login_btn:
             if input_email and input_pass:
-                norm_email = normalize_email(input_email)
+                norm_email = university_email(input_email, allow_admin=True)
+                if norm_email is None:
+                    st.error("関西大学のメールアドレスを入力してください。")
+                    st.stop()
                 
                 # ① 統括管理者のログイン判定
                 if norm_email == normalize_email(SUPER_ADMIN_NAME) and SUPER_ADMIN_PASS and input_pass == SUPER_ADMIN_PASS:
@@ -596,7 +627,7 @@ else:
     if view_mode == "🏠 ホーム":
         st.title("活動カレンダー")
         if not st.session_state.is_super and profile_missing_fields(current_user):
-            st.info("初回の方は「自分の登録情報」で、ふりがな〜学科を入力して保存してください。")
+            info_message("初回の方は「自分の登録情報」で、ふりがな〜学科を入力して保存してください。")
             st.button("自分の登録情報を入力する", on_click=go_to_profile)
         if pending:
             notification, action = st.columns([3, 2])
@@ -609,23 +640,24 @@ else:
         with st.container(key="calendar-layout"):
             calendar_panel, today_panel = st.columns([3, 1], gap="medium")
             with calendar_panel:
-                previous, current, following = st.columns(3)
-                previous.button("← 前の月", key="calendar_previous", on_click=change_calendar_month,
-                                args=(-1,), disabled=month == date.min, width="stretch")
-                if current.button("今月に戻る", key="calendar_current", width="stretch"):
-                    st.session_state.calendar_month = today.replace(day=1)
-                    st.session_state.pop("selected_activity", None)
-                    st.rerun()
-                following.button("次の月 →", key="calendar_next", on_click=change_calendar_month,
-                                 args=(1,), disabled=month == date(9999, 12, 1), width="stretch")
+                with st.container(key="month-nav"):
+                    previous, current, following = st.columns(3)
+                    previous.button("← 前月", key="calendar_previous", on_click=change_calendar_month,
+                                    args=(-1,), disabled=month == date.min, width="stretch")
+                    if current.button("今月", key="calendar_current", width="stretch"):
+                        st.session_state.calendar_month = today.replace(day=1)
+                        st.session_state.pop("selected_activity", None)
+                        st.rerun()
+                    following.button("次月 →", key="calendar_next", on_click=change_calendar_month,
+                                     args=(1,), disabled=month == date(9999, 12, 1), width="stretch")
                 show_calendar(month, activities, today)
                 if not activities:
-                    st.info("活動日程はまだ登録されていません。")
+                    info_message("活動日程はまだ登録されていません。")
                 else:
                     month_activities = [r for r in activities if r["day"] and
                                         (r["day"].year, r["day"].month) == (month.year, month.month)]
                     if not month_activities:
-                        st.info("この月の予定はまだ登録されていません。")
+                        info_message("この月の予定はまだ登録されていません。")
                     if undated:
                         with st.expander("活動年が未登録の予定"):
                             for row in undated:
@@ -646,9 +678,9 @@ else:
     elif view_mode == "📅 シフト":
         st.title("📅 シフト提出")
         if st.session_state.is_super:
-            st.info("統括アカウントは回答できません。「管理」で回答一覧を確認してください。")
+            info_message("統括アカウントは回答できません。「管理」で回答一覧を確認してください。")
         elif not activities:
-            st.info("現在、回答できる日程はありません。")
+            info_message("現在、回答できる日程はありません。")
         else:
             if pending:
                 st.error(f"未回答：あと{len(pending)}件")
@@ -684,14 +716,14 @@ else:
         st.title("👤 自分の登録情報")
         
         if st.session_state.is_super:
-            st.info("統括アカウントには個人プロフィールがありません。「管理」で操作してください。")
+            info_message("統括アカウントには個人プロフィールがありません。「管理」で操作してください。")
         else:
             df_members = load_csv(CSV_MEMBERS)
             norm_email = normalize_email(st.session_state.user_email)
             df_members['検索用メール'] = df_members['メールアドレス'].apply(normalize_email)
             user_data = df_members[df_members['検索用メール'] == norm_email].iloc[-1]
             if profile_missing_fields(user_data):
-                st.info("ふりがな・役職・学年・学部・学科を確認し、「プロフィールを保存する」を押してください。")
+                info_message("ふりがな・役職・学年・学部・学科を確認し、「プロフィールを保存する」を押してください。")
             
             def_kana = user_data.get('ふりがな', '') if pd.notna(user_data.get('ふりがな', '')) else ""
             def_role = user_data.get('役職', ROLES[0]) if user_data.get('役職', '') in ROLES else ROLES[0]
@@ -779,7 +811,7 @@ else:
                     col_r1, col_r2 = st.columns(2)
                     with col_r1:
                         new_name = st.text_input("名前（フルネーム）")
-                        new_email = st.text_input("メールアドレス")
+                        new_email = st.text_input("メールアドレス（@より前）", help="@kansai-u.ac.jp は自動で補います。")
                         new_pass = st.text_input("初期パスワード", type="password")
                     with col_r2:
                         new_role = st.selectbox("役職", ROLES)
@@ -787,17 +819,19 @@ else:
                     
                     if st.form_submit_button("メンバーを登録する"):
                         df_members = load_csv(CSV_MEMBERS)
-                        norm_new_email = normalize_email(new_email)
+                        norm_new_email = university_email(new_email)
                         
                         if not new_name or not new_email or not new_pass:
                             st.error("名前、メールアドレス、初期パスワードは必須です。")
+                        elif norm_new_email is None:
+                            st.error("関西大学のメールアドレスを入力してください。")
                         elif not df_members.empty and norm_new_email in df_members['メールアドレス'].apply(normalize_email).values:
                             st.error("このメールアドレスは既に登録されています。")
                         else:
                             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             hashed_pass = hash_password(new_pass)
                             new_member = pd.DataFrame([[
-                                now, new_name, new_email, hashed_pass, False, new_is_host, 
+                                now, new_name, norm_new_email, hashed_pass, False, new_is_host,
                                 "", new_role, "選択してください", "選択してください", "", GRADES[0], "", ""
                             ]], columns=[
                                 '更新日時', '名前', 'メールアドレス', 'パスワードハッシュ', '初回パスワード変更済み', 'ホスト権限', 
@@ -813,7 +847,7 @@ else:
             if not df_schedule.empty:
                 st.dataframe(df_schedule, use_container_width=True, hide_index=True)
             else:
-                st.info("まだ回答がありません。")
+                info_message("まだ回答がありません。")
                 
         with htab2:
             st.subheader("J-EXCHANGE SPARK メンバー名簿")
@@ -826,12 +860,12 @@ else:
                     display_members = display_members[display_members['役職'] == filter_role]
                 st.dataframe(display_members, use_container_width=True, hide_index=True)
             else:
-                st.info("まだ登録メンバーがいません。")
+                info_message("まだ登録メンバーがいません。")
                 
         with htab3:
             st.subheader("新しい日程の追加")
             if st.session_state.notification_text:
-                st.info("💡 以下のテキストをコピーして、Discordのお知らせチャンネルに共有してください。")
+                info_message("💡 以下のテキストをコピーして、Discordのお知らせチャンネルに共有してください。")
                 st.code(st.session_state.notification_text, language="text")
                 if st.button("メッセージを閉じる"):
                     st.session_state.notification_text = ""
@@ -913,7 +947,7 @@ else:
                         st.success(f"日程「{date_to_delete}」を削除しました。")
                         st.rerun()
                 else:
-                    st.info("削除できる日程がありません。")
+                    info_message("削除できる日程がありません。")
             
             with del_col2:
                 st.write("**メンバーの削除**")
@@ -945,7 +979,7 @@ else:
                                 st.success(f"メンバー「{target_name}」を削除しました。")
                                 st.rerun()
                     else:
-                        st.info("削除できるメンバーがいません。")
+                        info_message("削除できるメンバーがいません。")
 
         if st.session_state.is_super:
             with htab4:
@@ -968,14 +1002,18 @@ else:
                         new_status = st.checkbox(f"👑 ホスト権限を付与する", value=current_status)
                         
                         # メアド変更
-                        new_email_edit = st.text_input("メールアドレスの変更", value=target_email)
+                        new_email_edit = st.text_input("メールアドレスの変更（@より前）", value=target_email.split("@")[0],
+                                                       help="@kansai-u.ac.jp は自動で補います。")
                         
                         # パスワードリセット
                         reset_pass = st.text_input("初期パスワードの再設定（変更する場合のみ入力）", type="password")
                         
                         if st.button("設定を更新する"):
+                            new_email_edit = university_email(new_email_edit)
                             # メアド変更時の重複チェック
-                            if normalize_email(new_email_edit) != norm_target_email and normalize_email(new_email_edit) in df_members['メールアドレス'].apply(normalize_email).values:
+                            if not new_email_edit:
+                                st.error("関西大学のメールアドレスを入力してください。")
+                            elif normalize_email(new_email_edit) != norm_target_email and normalize_email(new_email_edit) in df_members['メールアドレス'].apply(normalize_email).values:
                                 st.error("そのメールアドレスは他のユーザーが既に使用しています。")
                             else:
                                 df_members.loc[target_idx, 'ホスト権限'] = new_status
@@ -988,4 +1026,4 @@ else:
                                 df_members.to_csv(CSV_MEMBERS, index=False)
                                 st.success(f"✅ {target_name} さんの設定を更新しました！")
                 else:
-                    st.info("登録されているユーザーがいません。")
+                    info_message("登録されているユーザーがいません。")
