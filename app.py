@@ -112,6 +112,36 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 [data-testid="stAppDeployButton"], #MainMenu,
 [data-testid="stAppViewerBadge"], [class*="viewerBadge"],
 [class*="ViewerBadge"], footer { display: none !important; }
+/* 閉じたメニューを戻すボタンは、Streamlitのツールバー内にある。 */
+[data-testid="stToolbar"]:has([data-testid="stExpandSidebarButton"]),
+[data-testid="stAppToolbar"]:has([data-testid="stExpandSidebarButton"]) {
+    display: flex !important;
+}
+[data-testid="stToolbar"] > div > div:not(:has([data-testid="stExpandSidebarButton"])) {
+    display: none !important;
+}
+[data-testid="stExpandSidebarButton"] {
+    display: inline-flex !important; visibility: visible !important;
+}
+[data-testid="stExpandSidebarButton"],
+[data-testid="stSidebarCollapseButton"] button {
+    width: 48px !important; height: 48px !important;
+    min-width: 48px !important; min-height: 48px !important;
+    background: #e8f5ec !important; color: #14532d !important;
+    border: 1px solid #bdcfc2 !important; border-radius: 10px !important;
+}
+[data-testid="stExpandSidebarButton"] span,
+[data-testid="stSidebarCollapseButton"] button span {
+    font-size: 30px !important; color: #14532d !important;
+}
+[data-testid="stExpandSidebarButton"]:hover,
+[data-testid="stSidebarCollapseButton"] button:hover {
+    background: #d7eddf !important; border-color: #14532d !important;
+}
+[data-testid="stExpandSidebarButton"]:focus-visible,
+[data-testid="stSidebarCollapseButton"] button:focus-visible {
+    outline: 3px solid #14532d !important; outline-offset: 2px;
+}
 [data-testid="stStatusWidget"], [data-testid="stMainMenu"],
 [data-testid="stGithubIcon"], [data-testid="stGitHubIcon"],
 [data-testid="stHostedAppBadge"], [class*="_viewerBadge"],
@@ -505,12 +535,12 @@ def show_activity_details(label):
             st.text("、".join(names))
         else:
             st.write("まだいません")
-    st.subheader("当日の共有メモ")
+    st.subheader("共有メモ")
     if can_edit_activity_memo():
         with st.form("activity_memo_form"):
-            memo = st.text_area("集合場所・持ち物・注意事項など", value=row["memo"],
+            memo = st.text_area("メモ", value=row["memo"],
                                 key=f"memo_{label}", height=160)
-            submitted = st.form_submit_button("共有メモを保存する", type="primary")
+            submitted = st.form_submit_button("メモを保存する", type="primary")
         if submitted:
             if save_activity_memo(label, memo):
                 st.success("保存しました。全員がこの予定の詳細から確認できます。")
