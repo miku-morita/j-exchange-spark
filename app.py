@@ -439,9 +439,21 @@ def activity_time(label):
     return f"{times[1]}〜{times[2]}" if times else "時間未登録"
 
 
+def can_edit_activity_memo():
+    if not st.session_state.get("logged_in"):
+        return False
+    if st.session_state.get("is_super"):
+        return True
+    if not st.session_state.get("is_host"):
+        return False
+    members = load_csv(CSV_MEMBERS)
+    matches = members[members["メールアドレス"].apply(normalize_email) == normalize_email(st.session_state.get("user_email", ""))]
+    return not matches.empty and parse_bool(matches.iloc[-1].get("ホスト権限", False))
+
+
 def save_activity_memo(label, memo):
-    if not st.session_state.get("logged_in") or not st.session_state.get("is_super"):
-        raise PermissionError("共有メモを編集できるのは統括管理者だけです。")
+    if not can_edit_activity_memo():
+        raise PermissionError("共有メモを編集できるのはホスト・統括管理者だけです。")
     df = load_csv(CSV_DATES)
     mask = df["日程"] == label
     if not mask.any():
@@ -485,7 +497,7 @@ def show_activity_details(label):
     else:
         st.write("まだいません")
     st.subheader("当日の共有メモ")
-    if st.session_state.get("is_super"):
+    if can_edit_activity_memo():
         with st.form("activity_memo_form"):
             memo = st.text_area("集合場所・持ち物・注意事項など", value=row["memo"],
                                 key=f"memo_{label}", height=160)
@@ -929,12 +941,12 @@ else:
         st.title("👑 管理")
         
         if st.session_state.is_super:
-            htab_reg, htab1, htab2, htab3, htab_del, htab4 = st.tabs(["➕ メンバー登録(統括)", "📋 シフト状況", "👥 メンバー名簿", "⚙️ 日程設定", "🗑️ データ削除", "🛠️ 管理者設定(統括)"])
+            htab_reg, htab1, htab2, htab3, htab_del, htab4 = st.tabs(["➕ メンバー登録", "📋 シフト状況", "👥 メンバー名簿", "⚙️ 日程設定", "🗑️ データ削除", "🛠️ 管理者設定(統括)"])
         else:
-            htab1, htab2, htab3, htab_del = st.tabs(["📋 シフト回答状況", "👥 メンバー名簿", "⚙️ 日程の設定", "🗑️ データの削除"])
+            htab_reg, htab1, htab2, htab3, htab_del = st.tabs(["➕ メンバー登録", "📋 シフト回答状況", "👥 メンバー名簿", "⚙️ 日程の設定", "🗑️ 日程の削除"])
             
-        # ★ 新規追加：統括によるメンバー事前登録画面
-        if st.session_state.is_super:
+        # ホストも一般メンバーを登録できる。権限付与は統括だけに限定する。
+        if st.session_state.is_host:
             with htab_reg:
                 st.subheader("➕ 新規メンバーの登録")
                 st.write("J-EXCHANGE SPARKに参加するメンバーを事前登録します。ここで設定した初期パスワードを本人に伝えてください。")
@@ -947,7 +959,7 @@ else:
                         new_pass = st.text_input("初期パスワード", type="password")
                     with col_r2:
                         new_role = st.selectbox("役職", ROLES)
-                        new_is_host = st.checkbox("このメンバーにホスト権限を付与する")
+                        new_is_host = st.checkbox("このメンバーにホスト権限を付与する") if st.session_state.is_super else False
                     
                     if st.form_submit_button("メンバーを登録する"):
                         df_members = load_csv(CSV_MEMBERS)
@@ -963,7 +975,7 @@ else:
                             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             hashed_pass = hash_password(new_pass)
                             new_member = pd.DataFrame([[
-                                now, new_name, norm_new_email, hashed_pass, False, new_is_host,
+                                now, new_name, norm_new_email, hashed_pass, False, bool(st.session_state.is_super and new_is_host),
                                 "", new_role, "選択してください", "選択してください", "", GRADES[0], "", ""
                             ]], columns=[
                                 '更新日時', '名前', 'メールアドレス', 'パスワードハッシュ', '初回パスワード変更済み', 'ホスト権限', 
@@ -1060,7 +1072,10 @@ else:
             st.subheader("🗑️ データの削除")
             st.error("⚠️ 一度削除したデータは元に戻せません。慎重に操作してください。")
             
-            del_col1, del_col2 = st.columns(2)
+            if st.session_state.is_super:
+                del_col1, del_col2 = st.columns(2)
+            else:
+                del_col1, del_col2 = st.container(), None
             
             with del_col1:
                 st.write("**日程（スケジュール）の削除**")
@@ -1084,37 +1099,38 @@ else:
                 else:
                     info_message("削除できる日程がありません。")
             
-            with del_col2:
-                st.write("**メンバーの削除**")
-                df_members = load_csv(CSV_MEMBERS)
-                if not df_members.empty:
-                    # 名前とメールアドレスのリストを作成
-                    member_list = [f"{row['名前']} ({row['メールアドレス']})" for idx, row in df_members.iterrows()]
+            if st.session_state.is_super:
+                with del_col2:
+                    st.write("**メンバーの削除**")
+                    df_members = load_csv(CSV_MEMBERS)
+                    if not df_members.empty:
+                        # 名前とメールアドレスのリストを作成
+                        member_list = [f"{row['名前']} ({row['メールアドレス']})" for idx, row in df_members.iterrows()]
                     
-                    if member_list:
-                        selected_member_str = st.selectbox("削除するメンバーを選択", member_list)
-                        confirm_delete = st.checkbox("本当にこのメンバーを削除しますか？（シフト回答も削除されます）")
+                        if member_list:
+                            selected_member_str = st.selectbox("削除するメンバーを選択", member_list)
+                            confirm_delete = st.checkbox("本当にこのメンバーを削除しますか？（シフト回答も削除されます）")
                         
-                        if st.button("このメンバーを完全に削除する"):
-                            if not confirm_delete:
-                                st.error("削除する場合はチェックボックスにチェックを入れてください。")
-                            else:
-                                target_email = selected_member_str.split('(')[-1].strip(')')
-                                norm_target_email = normalize_email(target_email)
-                                target_name = df_members[df_members['メールアドレス'].apply(normalize_email) == norm_target_email]['名前'].values[0]
+                            if st.button("このメンバーを完全に削除する"):
+                                if not confirm_delete:
+                                    st.error("削除する場合はチェックボックスにチェックを入れてください。")
+                                else:
+                                    target_email = selected_member_str.split('(')[-1].strip(')')
+                                    norm_target_email = normalize_email(target_email)
+                                    target_name = df_members[df_members['メールアドレス'].apply(normalize_email) == norm_target_email]['名前'].values[0]
                                 
-                                df_members = df_members[df_members['メールアドレス'].apply(normalize_email) != norm_target_email]
-                                df_members.to_csv(CSV_MEMBERS, index=False)
+                                    df_members = df_members[df_members['メールアドレス'].apply(normalize_email) != norm_target_email]
+                                    df_members.to_csv(CSV_MEMBERS, index=False)
                                 
-                                df_schedule = load_csv(CSV_SCHEDULE)
-                                if not df_schedule.empty and target_name in df_schedule['名前'].values:
-                                    df_schedule = df_schedule[df_schedule['名前'] != target_name]
-                                    df_schedule.to_csv(CSV_SCHEDULE, index=False)
+                                    df_schedule = load_csv(CSV_SCHEDULE)
+                                    if not df_schedule.empty and target_name in df_schedule['名前'].values:
+                                        df_schedule = df_schedule[df_schedule['名前'] != target_name]
+                                        df_schedule.to_csv(CSV_SCHEDULE, index=False)
                                 
-                                st.success(f"メンバー「{target_name}」を削除しました。")
-                                st.rerun()
-                    else:
-                        info_message("削除できるメンバーがいません。")
+                                    st.success(f"メンバー「{target_name}」を削除しました。")
+                                    st.rerun()
+                        else:
+                            info_message("削除できるメンバーがいません。")
 
         if st.session_state.is_super:
             with htab4:
