@@ -361,6 +361,12 @@ def parse_bool(val):
         return val
     return str(val).lower() in ['true', '1', 't', 'y', 'yes']
 
+def shift_members(members):
+    if '先生モード' not in members.columns:
+        return members
+    return members[~members['先生モード'].apply(parse_bool)]
+
+
 def init_files():
     if not os.path.exists(CSV_DATES):
         pd.DataFrame(columns=['日程']).to_csv(CSV_DATES, index=False)
@@ -671,6 +677,7 @@ def can_manage_room():
 
 
 def room_candidates(row, members, schedule, wishes):
+    members = shift_members(members)
     slots = [part for part, _ in SESSION_PARTS] if row.get("kind") == "セッション" else ["全時間"]
     result = {slot: {} for slot in slots}
     if schedule.empty or members.empty:
@@ -716,6 +723,9 @@ def save_room_wishes(edits):
     email = normalize_email(st.session_state.user_email)
     if not members["メールアドレス"].apply(normalize_email).eq(email).any():
         raise PermissionError("登録されているメンバーだけが利用希望を保存できます。")
+    own = members[members['メールアドレス'].apply(normalize_email).eq(email)].iloc[-1]
+    if parse_bool(own.get('先生モード', False)):
+        raise PermissionError('先生モードはシフト回答の対象外です。')
     eligible = {r["label"] for r in activity_rows() if room_eligible(r)}
     with room_connection() as connection:
         for label, wanted in edits.items():
@@ -938,6 +948,7 @@ def save_participation_review(email, config):
 
 
 def participation_report(members, schedule, activities, reviews, today):
+    members = shift_members(members)
     # 更新日時を登録日の代用にしない。対象は完了した直近2暦月。
     end = today.replace(day=1) - timedelta(days=1)
     start = (end.replace(day=1) - timedelta(days=1)).replace(day=1)
@@ -1004,6 +1015,9 @@ def show_participation_review(activities):
         return
     reviews = load_participation_reviews()
     start, end, report = participation_report(members, load_csv(CSV_SCHEDULE), activities, reviews, today_japan())
+    if not report:
+        info_message('シフト回答の対象メンバーがいません。')
+        return
     st.write(f'確認期間：{start:%Y/%m/%d} ～ {end:%Y/%m/%d}')
     st.metric('確認候補', f"{sum(r['判定'].startswith('要確認') for r in report)}名")
     only = st.checkbox('確認候補・判定保留のみ表示', value=True)
@@ -1112,7 +1126,7 @@ def show_activity_details(label):
     if not schedule.empty and label in schedule.columns and "名前" in schedule.columns:
         latest = schedule.drop_duplicates("名前", keep="last")
         members = load_csv(CSV_MEMBERS)
-        latest = latest[latest["名前"].isin(members["名前"])]
+        latest = latest[latest["名前"].isin(shift_members(members)["名前"])]
         if row.get("kind") == "セッション":
             for record in latest.to_dict("records"):
                 parts = [part for part, _ in SESSION_PARTS
@@ -1369,11 +1383,12 @@ else:
             st.rerun()
 
     activities = activity_rows()
+    is_teacher = not st.session_state.is_super and parse_bool(current_user.get('先生モード', False))
     answers = {} if st.session_state.is_super else my_answers()
     today = today_japan()
     upcoming = [r for r in activities if r["day"] and r["day"] >= today]
     undated = [r for r in activities if r["day"] is None]
-    pending = [] if st.session_state.is_super else [
+    pending = [] if st.session_state.is_super or is_teacher else [
         r for r in upcoming + undated if activity_pending(r, answers)]
     if pending:
         st.markdown("""
@@ -1391,7 +1406,7 @@ else:
         </style>
         """, unsafe_allow_html=True)
 
-    pages = ["🏠 ホーム", "📅 シフト", "👤 マイページ"]
+    pages = ["🏠 ホーム", "👤 マイページ"] if is_teacher else ["🏠 ホーム", "📅 シフト", "👤 マイページ"]
     if can_manage_room():
         pages.append("🏫 合同研究室")
     if st.session_state.is_host:
@@ -1447,6 +1462,10 @@ else:
                     if row["deadline"]:
                         deadline_groups.setdefault(row["deadline"], []).append(row)
                 for deadline_day, rows in sorted(deadline_groups.items()):
+                    if is_teacher:
+                        continue
+                    if not st.session_state.is_super and not any(activity_pending(row, answers) for row in rows):
+                        continue
                     scope = f"{month.month}月分のシフト" if len(rows) == len(month_responses) else f"{month.month}月のシフト（一部の予定）"
                     message = f"{scope}回答期限：{deadline_day.strftime('%Y/%m/%d')} 23:59まで"
                     if deadline_day < today:
@@ -1495,12 +1514,14 @@ else:
                 label = st.selectbox("活動を選択", [row["label"] for row in eligible], key="room_event")
                 show_room_manager(next(row for row in eligible if row["label"] == label))
             else:
-                info_message("研究室を予約できるオンライン活動がありません。")
+                info_message("研究室の利用希望を受け付ける予定がありません。")
 
     elif view_mode == "📅 シフト":
         st.title("📅 シフト提出")
         if st.session_state.is_super:
             info_message("統括アカウントは回答できません。「管理」で回答一覧を確認してください。")
+        elif is_teacher:
+            info_message('先生モードはシフト回答の対象外です。')
         elif not any(r.get("requires_response", True) for r in activities):
             info_message("現在、回答できる日程はありません。")
         else:
@@ -1528,7 +1549,7 @@ else:
                         status = "🔴 未" if activity_pending(row, answers) else "✓ 済"
                         identifier = hashlib.sha256(label.encode()).hexdigest()[:16]
                         with st.container(key=f"shift-event-{event_tone(row)}-{identifier}"):
-                            with st.expander(f"{status}　{day_label}　{activity_title(label)}", expanded=row_index == 0):
+                            with st.expander(f"{status}　{day_label}　{activity_title(label)}", expanded=False):
                                 if row["deadline"]:
                                     st.caption(f"回答期限：{row['deadline'].month}/{row['deadline'].day} 23:59まで")
                                     if row["deadline"] < today:
@@ -1550,9 +1571,10 @@ else:
                                         index=ANSWER_OPTIONS.index(answer_for(answers, label)), key=f"answer_{label}")
                                 comment_column = f"{label}｜コメント"
                                 saved_comment = answers.get(comment_column, "")
-                                edits[comment_column] = st.text_input("一言コメント（任意）",
-                                    value="" if pd.isna(saved_comment) else str(saved_comment),
-                                    key=f"comment_{label}", max_chars=200)
+                                comment_text = "" if pd.isna(saved_comment) else str(saved_comment)
+                                with st.popover("コメントを確認・編集" if comment_text else "コメント（任意）"):
+                                    edits[comment_column] = st.text_input("一言コメント（任意）",
+                                        value=comment_text, key=f"comment_{label}", max_chars=200)
                                 if room_eligible(row):
                                     config = room_config(label)
                                     room_edits[label] = st.checkbox("池澤先生の合同研究室の利用を希望する",
@@ -1745,7 +1767,7 @@ else:
                 records = {} if df_schedule.empty else df_schedule.drop_duplicates('名前', keep='last').set_index('名前').to_dict('index')
                 display = []
                 completed = 0
-                for member in load_csv(CSV_MEMBERS).to_dict('records'):
+                for member in shift_members(load_csv(CSV_MEMBERS)).to_dict('records'):
                     answers_row = records.get(member['名前'], {})
                     completed += not activity_pending(row, answers_row)
                     entry = {'名前': member['名前']}
