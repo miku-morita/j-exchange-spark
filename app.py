@@ -18,7 +18,11 @@ from datetime import datetime, time, date, timedelta, timezone
 # ==========================================
 # 1. データの準備と設定
 # ==========================================
-st.set_page_config(page_title="J-EXCHANGE SPARK 管理アプリ", layout="wide", initial_sidebar_state="auto")
+LOGO_PATH = Path(__file__).with_name("丸型_白枠影あり.svg")
+st.set_page_config(page_title="J-EXCHANGE SPARK 管理アプリ", layout="wide", initial_sidebar_state="auto",
+                   page_icon=str(LOGO_PATH) if LOGO_PATH.is_file() else "🌿")
+if LOGO_PATH.is_file():
+    st.logo(str(LOGO_PATH), size="large", icon_image=str(LOGO_PATH))
 
 # 白を基調に、操作する場所を緑で示す共通デザイン。
 st.markdown("""
