@@ -18,7 +18,7 @@ from datetime import datetime, time, date, timedelta, timezone
 # ==========================================
 # 1. データの準備と設定
 # ==========================================
-st.set_page_config(page_title="J-EXCHANGE SPARK 管理アプリ", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="J-EXCHANGE SPARK 管理アプリ", layout="wide", initial_sidebar_state="auto")
 
 # 白を基調に、操作する場所を緑で示す共通デザイン。
 st.markdown("""
@@ -580,6 +580,7 @@ def close_sidebar_after_navigation():
     # 固定スクリプトだけを実行し、メンバー名などの入力値は埋め込まない。
     st.html('''<script>
     (() => {
+      if (!window.matchMedia('(max-width: 640px)').matches) return;
       let attempts = 0;
       const close = () => {
         const sidebar = document.querySelector('[data-testid="stSidebar"]');
@@ -1009,9 +1010,9 @@ def show_participation_review(activities):
     require_super()
     st.subheader('参加意思の確認')
     st.caption('統括管理者のみ。現在保存されているシフト回答を確認します。実際の出欠・期限内の回答を証明するものではありません。面談等の判断は個別に行ってください。')
-    members = load_csv(CSV_MEMBERS)
+    members = shift_members(load_csv(CSV_MEMBERS))
     if members.empty:
-        info_message('登録メンバーがいません。')
+        info_message('シフト回答の対象メンバーがいません。')
         return
     reviews = load_participation_reviews()
     start, end, report = participation_report(members, load_csv(CSV_SCHEDULE), activities, reviews, today_japan())
@@ -1144,8 +1145,6 @@ def show_activity_details(label):
                 st.text("\n".join(names))
             else:
                 st.caption("まだいません")
-    if room_eligible(row):
-        show_room_summary(row, room_candidates(row, load_csv(CSV_MEMBERS), load_csv(CSV_SCHEDULE), room_wishes(label)), room_config(label))
     with st.container(key="activity-detail-memo"):
         st.subheader("共有メモ")
         if can_edit_activity_memo():
@@ -1162,6 +1161,9 @@ def show_activity_details(label):
             st.text(row["memo"])
         else:
             st.caption("なし")
+    if room_eligible(row):
+        with st.expander("合同研究室の利用状況", expanded=False):
+            show_room_summary(row, room_candidates(row, load_csv(CSV_MEMBERS), load_csv(CSV_SCHEDULE), room_wishes(label)), room_config(label))
 
 
 def show_calendar(month, activities, today):
