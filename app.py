@@ -194,29 +194,8 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-shift_answers [data-testid="stVerticalBlock"] { gap: .5rem; }
 .st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .5rem !important; }
 .st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stColumn"] { min-width: 0 !important; width: 50% !important; flex: 1 1 0 !important; }
-.st-key-mobile-calendar, .st-key-mobile-day-agenda { display: none; }
 @media (max-width: 640px) {
-    .st-key-activity-calendar { display: none; }
-    .st-key-mobile-calendar, .st-key-mobile-day-agenda { display: block; }
     [data-testid="stMainBlockContainer"] { padding-left: .75rem; padding-right: .75rem; }
-    .st-key-mobile-calendar { border-top: 1px solid #c6d2ca; border-left: 1px solid #c6d2ca; }
-    .st-key-mobile-calendar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0 !important; align-items: stretch; }
-    .st-key-mobile-calendar [data-testid="stColumn"] { min-width: 0 !important; width: 14.2857% !important; flex: 1 1 0 !important; }
-    .st-key-mobile-calendar [data-testid="stVerticalBlock"] { gap: 0 !important; }
-    .st-key-mobile-calendar .calendar-weekday { font-size: .8rem; }
-    .st-key-mobile-calendar [class*="st-key-mobile-date-"] { border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; min-height: 48px; }
-    .st-key-mobile-calendar .stButton button { width: 100%; height: 48px; min-height: 48px; padding: 0; border: 0; border-radius: 0; background: #fff; color: #24352c; }
-    .st-key-mobile-calendar .stButton button p { font-family: sans-serif; font-size: .85rem; line-height: 1.2; white-space: nowrap; margin: 0; }
-    .st-key-mobile-calendar [class*="-saturday"] button { color: #225ca2; background: #f0f6ff; }
-    .st-key-mobile-calendar [class*="-saturday"] button p { color: #225ca2 !important; }
-    .st-key-mobile-calendar [class*="-sunday"] button, .st-key-mobile-calendar [class*="-holiday"] button { color: #b32632; background: #fff2f2; }
-    .st-key-mobile-calendar [class*="-sunday"] button p, .st-key-mobile-calendar [class*="-holiday"] button p { color: #b32632 !important; }
-    .st-key-mobile-calendar [class*="-today"] button { box-shadow: inset 0 0 0 2px #14532d; }
-    .st-key-mobile-calendar [class*="-selected"] button { background: #14532d; color: #fff; }
-    .st-key-mobile-calendar [class*="-selected"] button p { color: #fff !important; }
-    .st-key-mobile-day-agenda { margin-top: .75rem; }
-    .st-key-mobile-day-agenda .stButton button { min-height: 44px; padding: .65rem .75rem; text-align: left; }
-    .st-key-mobile-day-agenda .stButton button p { font-size: .95rem; line-height: 1.5; overflow-wrap: anywhere; }
     [data-testid="stMainBlockContainer"] { padding-top: 1.5rem; }
     .spark-welcome { padding: 1.3rem; }
     h1 { font-size: 1.6rem !important; }
@@ -224,14 +203,14 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
     .st-key-page [role="radiogroup"] > label { padding: .65rem .75rem; }
     .st-key-activity-calendar [class*="st-key-calendar-day-"] { min-height: 68px; padding: .2rem; }
     .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .6rem; }
-    .st-key-activity-calendar .calendar-date { font-size: .75rem; }
+    .st-key-activity-calendar .calendar-date { font-size: .68rem; }
     .st-key-activity-calendar .stButton button { min-height: 36px; padding: .2rem .1rem; }
     .st-key-activity-calendar .stButton button p {
-        font-size: .7rem; line-height: 1.3; display: -webkit-box;
+        font-size: .6rem; line-height: 1.3; display: -webkit-box;
         -webkit-box-orient: vertical; -webkit-line-clamp: 2;
         overflow: hidden; max-height: 2.6em; text-align: left;
     }
-    .calendar-event-time { font-size: .65rem; white-space: nowrap; }
+    .calendar-event-time { font-size: .55rem; white-space: nowrap; }
     .calendar-event-time .desktop-time { display: none; }
     .calendar-event-time .mobile-time { display: inline; }
 }
@@ -1178,39 +1157,6 @@ def show_calendar(month, activities, today):
         if row["day"] and (row["day"].year, row["day"].month) == (month.year, month.month):
             by_day.setdefault(row["day"].day, []).append(row)
     st.subheader(f"{month.year}年{month.month}月")
-    selected = st.session_state.get('mobile_calendar_day')
-    if not isinstance(selected, date) or (selected.year, selected.month) != (month.year, month.month):
-        selected = today if (today.year, today.month) == (month.year, month.month) else date(month.year, month.month, min(by_day) if by_day else 1)
-        st.session_state.mobile_calendar_day = selected
-    with st.container(key='mobile-calendar'):
-        for weekday_index, (column, weekday) in enumerate(zip(st.columns(7, gap=None), ['月', '火', '水', '木', '金', '土', '日'])):
-            color = 'calendar-blue' if weekday_index == 5 else 'calendar-red' if weekday_index == 6 else ''
-            column.markdown(f'<div class="calendar-weekday {color}">{weekday}</div>', unsafe_allow_html=True)
-        for week_index, week in enumerate(calendar.Calendar().monthdayscalendar(month.year, month.month)):
-            for column_index, (column, number) in enumerate(zip(st.columns(7, gap=None), week)):
-                day = date(month.year, month.month, number) if number else None
-                tone = 'outside' if not day else 'holiday' if day in holidays else 'saturday' if column_index == 5 else 'sunday' if column_index == 6 else 'weekday'
-                marker = '-today' if day == today else ''
-                marker += '-selected' if day == selected else ''
-                with column:
-                    with st.container(key=f'mobile-date-{week_index}-{column_index}-{tone}{marker}'):
-                        if day:
-                            count = len(by_day.get(number, []))
-                            text = f'{number} ·{count}' if count else str(number)
-                            if st.button(text, key=f'mobile-day-{day.isoformat()}', width='stretch',
-                                         help=f'{day.month}月{day.day}日：予定{count}件'):
-                                st.session_state.mobile_calendar_day = day
-                                st.session_state.pop('selected_activity', None)
-                                st.rerun()
-                        else:
-                            st.markdown('<div style="height:48px" aria-hidden="true"></div>', unsafe_allow_html=True)
-    with st.container(key='mobile-day-agenda'):
-        st.caption('日付の「·数字」は予定数です。日付をタップして予定を確認できます。')
-        st.markdown(f'**{selected.month}月{selected.day}日（{["月", "火", "水", "木", "金", "土", "日"][selected.weekday()]}）**')
-        for row in by_day.get(selected.day, []):
-            event_button(row, 'mobile-agenda')
-        if not by_day.get(selected.day):
-            st.caption('この日の予定はありません。')
     with st.container(key="activity-calendar"):
         for weekday_index, (column, weekday) in enumerate(zip(st.columns(7, gap=None), ["月", "火", "水", "木", "金", "土", "日"])):
             color = "calendar-blue" if weekday_index == 5 else "calendar-red" if weekday_index == 6 else ""
