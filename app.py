@@ -26,58 +26,206 @@ if LOGO_PATH.is_file():
     st.logo(str(LOGO_PATH), size="large", icon_image=str(LOGO_PATH))
 
 # 白を基調に、操作する場所を緑で示す共通デザイン。
+# Streamlit's active theme takes precedence over the OS preference.
+active_theme = st.context.theme.type
+theme_name = active_theme if active_theme in ('light', 'dark') else 'system'
+st.html(f'<span id="spark-theme" data-theme="{theme_name}" hidden></span>')
+
 st.markdown("""
-<style>
+<style>:root { --spark-color-scheme: light;
+--spark-ffffff: #ffffff;
+--spark-24352c: #24352c;
+--spark-14532d: #14532d;
+--spark-0f4023: #0f4023;
+--spark-195b33: #195b33;
+--spark-225ca2: #225ca2;
+--spark-30574b: #30574b;
+--spark-30574b08: #30574b08;
+--spark-315b40: #315b40;
+--spark-3c7764: #3c7764;
+--spark-45305e: #45305e;
+--spark-4c535c: #4c535c;
+--spark-51675f: #51675f;
+--spark-526158: #526158;
+--spark-624b82: #624b82;
+--spark-8566ac: #8566ac;
+--spark-8caf98: #8caf98;
+--spark-91af98: #91af98;
+--spark-a4aab2: #a4aab2;
+--spark-b32632: #b32632;
+--spark-b9a5d8: #b9a5d8;
+--spark-bdcfc2: #bdcfc2;
+--spark-c6d2ca: #c6d2ca;
+--spark-d6c5eb: #d6c5eb;
+--spark-d7eddf: #d7eddf;
+--spark-dbeadd: #dbeadd;
+--spark-dce9e1: #dce9e1;
+--spark-e2e9e3: #e2e9e3;
+--spark-e8f3eb: #e8f3eb;
+--spark-e8f5ec: #e8f5ec;
+--spark-eef0f2: #eef0f2;
+--spark-eef7f1: #eef7f1;
+--spark-f0ebfa: #f0ebfa;
+--spark-f0f6ff: #f0f6ff;
+--spark-f0f7f1: #f0f7f1;
+--spark-f0f7f2: #f0f7f2;
+--spark-f3faf5: #f3faf5;
+--spark-f4f7f5: #f4f7f5;
+--spark-f4f8f5: #f4f8f5;
+--spark-f6f7f6: #f6f7f6;
+--spark-fff2f2: #fff2f2;
+--spark-fff0f0: #fff0f0;
+--spark-ffe0e0: #ffe0e0;
+--spark-b42318: #b42318;
+}
+@media (prefers-color-scheme: dark) { :root:not(:has(#spark-theme[data-theme="light"])) { --spark-color-scheme: dark;
+--spark-ffffff: #17211e;
+--spark-24352c: #e7f0eb;
+--spark-14532d: #89d5aa;
+--spark-0f4023: #a5e3bf;
+--spark-195b33: #c2ead0;
+--spark-225ca2: #a5c9ff;
+--spark-30574b: #b4ddca;
+--spark-30574b08: #00000030;
+--spark-315b40: #c2e6cf;
+--spark-3c7764: #89cbb0;
+--spark-45305e: #eee0ff;
+--spark-4c535c: #d9dfe2;
+--spark-51675f: #b6c8bf;
+--spark-526158: #b7c9be;
+--spark-624b82: #e1d2fb;
+--spark-8566ac: #bc9cdd;
+--spark-8caf98: #6e9c80;
+--spark-91af98: #6d9b7b;
+--spark-a4aab2: #83949a;
+--spark-b32632: #ffb4b9;
+--spark-b9a5d8: #aa8bcc;
+--spark-bdcfc2: #4c6758;
+--spark-c6d2ca: #45594d;
+--spark-d6c5eb: #4a3a60;
+--spark-d7eddf: #304d3c;
+--spark-dbeadd: #425c4c;
+--spark-dce9e1: #3e5548;
+--spark-e2e9e3: #3d5246;
+--spark-e8f3eb: #243f31;
+--spark-e8f5ec: #203d2e;
+--spark-eef0f2: #30383b;
+--spark-eef7f1: #273e32;
+--spark-f0ebfa: #332c45;
+--spark-f0f6ff: #202f43;
+--spark-f0f7f1: #223a2b;
+--spark-f0f7f2: #22382c;
+--spark-f3faf5: #21352a;
+--spark-f4f7f5: #202f27;
+--spark-f4f8f5: #1d2d24;
+--spark-f6f7f6: #1e2723;
+--spark-fff2f2: #3f262c;
+--spark-fff0f0: #45282b;
+--spark-ffe0e0: #593034;
+--spark-b42318: #ffb4aa;
+} }
+:root:has(#spark-theme[data-theme="dark"]) { --spark-color-scheme: dark;
+--spark-ffffff: #17211e;
+--spark-24352c: #e7f0eb;
+--spark-14532d: #89d5aa;
+--spark-0f4023: #a5e3bf;
+--spark-195b33: #c2ead0;
+--spark-225ca2: #a5c9ff;
+--spark-30574b: #b4ddca;
+--spark-30574b08: #00000030;
+--spark-315b40: #c2e6cf;
+--spark-3c7764: #89cbb0;
+--spark-45305e: #eee0ff;
+--spark-4c535c: #d9dfe2;
+--spark-51675f: #b6c8bf;
+--spark-526158: #b7c9be;
+--spark-624b82: #e1d2fb;
+--spark-8566ac: #bc9cdd;
+--spark-8caf98: #6e9c80;
+--spark-91af98: #6d9b7b;
+--spark-a4aab2: #83949a;
+--spark-b32632: #ffb4b9;
+--spark-b9a5d8: #aa8bcc;
+--spark-bdcfc2: #4c6758;
+--spark-c6d2ca: #45594d;
+--spark-d6c5eb: #4a3a60;
+--spark-d7eddf: #304d3c;
+--spark-dbeadd: #425c4c;
+--spark-dce9e1: #3e5548;
+--spark-e2e9e3: #3d5246;
+--spark-e8f3eb: #243f31;
+--spark-e8f5ec: #203d2e;
+--spark-eef0f2: #30383b;
+--spark-eef7f1: #273e32;
+--spark-f0ebfa: #332c45;
+--spark-f0f6ff: #202f43;
+--spark-f0f7f1: #223a2b;
+--spark-f0f7f2: #22382c;
+--spark-f3faf5: #21352a;
+--spark-f4f7f5: #202f27;
+--spark-f4f8f5: #1d2d24;
+--spark-f6f7f6: #1e2723;
+--spark-fff2f2: #3f262c;
+--spark-fff0f0: #45282b;
+--spark-ffe0e0: #593034;
+--spark-b42318: #ffb4aa;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Graduate&display=swap');
-.stApp { background: #ffffff; color: #24352c; }
+.stApp { background: var(--spark-ffffff); color: var(--spark-24352c); }
 /* 白基調を維持し、OS/ブラウザのダーク設定で白文字・白背景が混在するのを防ぐ。 */
-.stApp, [data-testid="stHeader"] { color-scheme: light; }
+.stApp, [data-testid="stHeader"] { color-scheme: var(--spark-color-scheme); }
 .stApp [data-testid="stMarkdownContainer"], .stApp [data-testid="stWidgetLabel"],
-.stApp [data-testid="stText"], .stApp [data-testid="stExpander"] summary { color: #24352c; }
+.stApp [data-testid="stText"], .stApp [data-testid="stExpander"] summary { color: var(--spark-24352c); }
 [data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea,
 [data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="textarea"],
 [data-baseweb="popover"], [data-baseweb="popover"] li,
-[data-testid="stDialog"] [role="dialog"] { background: #ffffff !important; color: #24352c !important; }
-[data-baseweb="select"] span, [data-baseweb="popover"] li * { color: #24352c; }
-.stButton button, .stFormSubmitButton button { background: #ffffff; color: #24352c; }
+[data-testid="stDialog"] [role="dialog"] { background: var(--spark-ffffff) !important; color: var(--spark-24352c) !important; }
+[data-baseweb="select"] span, [data-baseweb="popover"] li * { color: var(--spark-24352c); }
+.stButton button, .stFormSubmitButton button { background: var(--spark-ffffff); color: var(--spark-24352c); }
 .stButton button[kind="primary"] [data-testid="stMarkdownContainer"],
-.stFormSubmitButton button[kind="primary"] [data-testid="stMarkdownContainer"] { color: #ffffff; }
-.stApp a { color: #14532d; }
-[data-testid="stHeader"] { background: #ffffff; }
+.stFormSubmitButton button[kind="primary"] [data-testid="stMarkdownContainer"] { color: var(--spark-ffffff); }
+.stApp a { color: var(--spark-14532d); }
+.stApp input:-webkit-autofill {
+    -webkit-text-fill-color: var(--spark-24352c);
+    -webkit-box-shadow: 0 0 0 1000px var(--spark-ffffff) inset;
+    caret-color: var(--spark-24352c);
+}
+[data-testid="stHeader"] { background: var(--spark-ffffff); }
 [data-testid="stMainBlockContainer"] { max-width: 100%; padding: 2rem clamp(1rem, 3vw, 3rem) 4rem; }
-[data-testid="stSidebar"] { background: #f4f8f5; border-right: 1px solid #dce9e1; }
+[data-testid="stSidebar"] { background: var(--spark-f4f8f5); border-right: 1px solid var(--spark-dce9e1); }
 [data-testid="stMarkdownContainer"] p { line-height: 1.75; }
-[data-testid="stCaptionContainer"] { color: #526158; }
+[data-testid="stCaptionContainer"] { color: var(--spark-526158); }
 [data-testid="stWidgetLabel"] p { font-weight: 600; }
-h1, h2, h3 { color: #30574b; letter-spacing: .015em; font-family: 'Graduate', 'Yu Gothic', 'Meiryo', sans-serif; }
+h1, h2, h3 { color: var(--spark-30574b); letter-spacing: .015em; font-family: 'Graduate', 'Yu Gothic', 'Meiryo', sans-serif; }
 h1 { font-size: 2rem !important; }
 h2 { font-size: 1.45rem !important; }
 h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 [data-testid="stForm"], [data-testid="stVerticalBlockBorderWrapper"] > div {
-    background: #ffffff; border-radius: 20px; border-color: #e2e9e3;
+    background: var(--spark-ffffff); border-radius: 20px; border-color: var(--spark-e2e9e3);
 }
-[data-testid="stForm"] { padding: 1.5rem; box-shadow: 0 6px 24px #30574b08; }
+[data-testid="stForm"] { padding: 1.5rem; box-shadow: 0 6px 24px var(--spark-30574b08); }
 [data-testid="stAlert"] { border-radius: 14px; }
 [data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea,
 [data-baseweb="select"] > div { border-radius: 12px; }
 .stButton button, .stFormSubmitButton button {
-    border-radius: 12px; min-height: 48px; border-color: #bdcfc2;
+    border-radius: 12px; min-height: 48px; border-color: var(--spark-bdcfc2);
     font-weight: 600; transition: background .15s, border-color .15s;
 }
-.stButton button:hover, .stFormSubmitButton button:hover { border-color: #3c7764; background: #eef7f1; color: #30574b; }
-.stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] { background: #14532D; border-color: #14532D; color: white; }
-.stButton button[kind="primary"]:hover, .stFormSubmitButton button[kind="primary"]:hover { background: #0F4023; color: white; }
-.stButton button:focus-visible, .stFormSubmitButton button:focus-visible { outline: 3px solid #14532D; outline-offset: 3px; }
-[data-testid="stExpander"] { background: white; border-radius: 14px; }
+.stButton button:hover, .stFormSubmitButton button:hover { border-color: var(--spark-3c7764); background: var(--spark-eef7f1); color: var(--spark-30574b); }
+.stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] { background: var(--spark-14532d); border-color: var(--spark-14532d); color: white; }
+.stButton button[kind="primary"]:hover, .stFormSubmitButton button[kind="primary"]:hover { background: var(--spark-0f4023); color: white; }
+.stButton button:focus-visible, .stFormSubmitButton button:focus-visible { outline: 3px solid var(--spark-14532d); outline-offset: 3px; }
+[data-testid="stExpander"] { background: var(--spark-ffffff); border-radius: 14px; }
 .spark-welcome {
-    background: #f3faf5;
-    border: 1px solid #dbeadd; border-left: 5px solid #14532D; border-radius: 16px;
+    background: var(--spark-f3faf5);
+    border: 1px solid var(--spark-dbeadd); border-left: 5px solid var(--spark-14532d); border-radius: 16px;
     padding: 1.5rem 1.75rem; margin-bottom: 1.2rem;
 }
-.spark-brand { color: #14532d; font-family: 'Graduate', serif; font-weight: 900; font-size: 1.05rem; letter-spacing: .06em; }
+.spark-brand { color: var(--spark-14532d); font-family: 'Graduate', serif; font-weight: 900; font-size: 1.05rem; letter-spacing: .06em; }
 [data-testid="stSidebar"] h1 { font-family: 'Graduate', serif; font-size: 1.45rem !important; font-weight: 900; line-height: 1.35; }
 .spark-welcome h1 { margin: .35rem 0; padding: 0; }
-.spark-welcome p { margin: .65rem 0 0; color: #51675f; line-height: 1.8; }
+.spark-welcome p { margin: .65rem 0 0; color: var(--spark-51675f); line-height: 1.8; }
 .st-key-page [role="radiogroup"] {
     display: flex; flex-direction: column; gap: .4rem;
     width: 100%; padding: .25rem 0;
@@ -89,42 +237,42 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
     min-height: 48px; margin: 0; cursor: pointer;
 }
 .st-key-page [role="radiogroup"] > label > div:first-child { display: none; }
-.st-key-page [role="radiogroup"] > label:hover { background: #f3faf5; }
+.st-key-page [role="radiogroup"] > label:hover { background: var(--spark-f3faf5); }
 .st-key-page [role="radiogroup"] > label:has(input:checked) {
-    background: #e8f5ec; border-left-color: #14532D; color: #195b33;
+    background: var(--spark-e8f5ec); border-left-color: var(--spark-14532d); color: var(--spark-195b33);
     font-weight: 700;
 }
-.st-key-page [role="radiogroup"] > label:focus-within { outline: 2px solid #3c7764; outline-offset: 3px; }
+.st-key-page [role="radiogroup"] > label:focus-within { outline: 2px solid var(--spark-3c7764); outline-offset: 3px; }
 [data-testid="stTabs"] [role="tab"] { border-radius: 0 !important; }
-.st-key-activity-calendar { width: 100%; max-width: 1080px; padding: 0; gap: 0 !important; border-top: 1px solid #c6d2ca; border-left: 1px solid #c6d2ca; }
+.st-key-activity-calendar { width: 100%; max-width: 1080px; padding: 0; gap: 0 !important; border-top: 1px solid var(--spark-c6d2ca); border-left: 1px solid var(--spark-c6d2ca); }
 .st-key-activity-calendar > div { gap: 0 !important; }
 .st-key-activity-calendar [data-testid="stHorizontalBlock"] { min-width: 0; flex-wrap: nowrap !important; gap: 0 !important; align-items: stretch; }
 .st-key-activity-calendar [data-testid="stColumn"] { width: 14.2857% !important; min-width: 0 !important; max-width: none !important; flex: 1 1 0 !important; }
 .st-key-activity-calendar [data-testid="stVerticalBlock"] { gap: .2rem; }
-.st-key-activity-calendar [class*="st-key-calendar-day-"] { min-height: 88px; height: 100%; border: 0; border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; border-radius: 0 !important; padding: .35rem; box-sizing: border-box; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"] { min-height: 88px; height: 100%; border: 0; border-right: 1px solid var(--spark-c6d2ca); border-bottom: 1px solid var(--spark-c6d2ca); border-radius: 0 !important; padding: .35rem; box-sizing: border-box; }
 .st-key-activity-calendar [class*="st-key-calendar-day-"] > div { border-radius: 0 !important; }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ff; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: var(--spark-f0f6ff); }
 .st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-sunday"],
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-holiday"] { background: #fff2f2; }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-outside"] { background: #f6f7f6; }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-today"] { box-shadow: inset 0 0 0 2px #14532d; }
-.calendar-weekday { text-align: center; font-weight: 600; background: #f4f7f5; padding: .35rem 0; border-right: 1px solid #c6d2ca; border-bottom: 1px solid #c6d2ca; }
-.calendar-date { color: #24352c; font-size: .85rem; font-weight: 600; line-height: 1.25; }
-.calendar-blue { color: #225ca2; }
-.calendar-red { color: #b32632; }
-.st-key-activity-calendar .stButton button { background: #e8f5ec; color: #195b33; border: 0; border-left: 2px solid #14532d; border-radius: 0; min-height: 28px; padding: .2rem; }
-.st-key-activity-calendar .stButton button:hover { background: #d7eddf; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-holiday"] { background: var(--spark-fff2f2); }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-outside"] { background: var(--spark-f6f7f6); }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-today"] { box-shadow: inset 0 0 0 2px var(--spark-14532d); }
+.calendar-weekday { text-align: center; font-weight: 600; background: var(--spark-f4f7f5); padding: .35rem 0; border-right: 1px solid var(--spark-c6d2ca); border-bottom: 1px solid var(--spark-c6d2ca); }
+.calendar-date { color: var(--spark-24352c); font-size: .85rem; font-weight: 600; line-height: 1.25; }
+.calendar-blue { color: var(--spark-225ca2); }
+.calendar-red { color: var(--spark-b32632); }
+.st-key-activity-calendar .stButton button { background: var(--spark-e8f5ec); color: var(--spark-195b33); border: 0; border-left: 2px solid var(--spark-14532d); border-radius: 0; min-height: 28px; padding: .2rem; }
+.st-key-activity-calendar .stButton button:hover { background: var(--spark-d7eddf); }
 .st-key-activity-calendar .stButton button p { font-size: clamp(.65rem, 1vw, .82rem); line-height: 1.25; overflow-wrap: anywhere; }
 .st-key-activity-calendar [data-testid="stCaptionContainer"] p { font-size: .68rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
-.calendar-event-time { color: #526158; font-size: .68rem; line-height: 1.2; }
+.calendar-event-time { color: var(--spark-526158); font-size: .68rem; line-height: 1.2; }
 .calendar-event-time .mobile-time { display: none; }
-[class*="st-key-event-online-"] .stButton button { background: #f0ebfa; color: #624b82; border-left-color: #b9a5d8; }
-[class*="st-key-event-offline-"] .stButton button { background: #d6c5eb; color: #45305e; border-left-color: #8566ac; }
-[class*="st-key-event-other-"] .stButton button { background: #eef0f2; color: #4c535c; border-left-color: #a4aab2; }
-[class*="st-key-event-session-"] .stButton button { background: #e8f3eb; color: #315b40; border-left-color: #8caf98; }
+[class*="st-key-event-online-"] .stButton button { background: var(--spark-f0ebfa); color: var(--spark-624b82); border-left-color: var(--spark-b9a5d8); }
+[class*="st-key-event-offline-"] .stButton button { background: var(--spark-d6c5eb); color: var(--spark-45305e); border-left-color: var(--spark-8566ac); }
+[class*="st-key-event-other-"] .stButton button { background: var(--spark-eef0f2); color: var(--spark-4c535c); border-left-color: var(--spark-a4aab2); }
+[class*="st-key-event-session-"] .stButton button { background: var(--spark-e8f3eb); color: var(--spark-315b40); border-left-color: var(--spark-8caf98); }
 [class*="st-key-event-"] .stButton button:hover { filter: brightness(.96); }
-.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: #f0f6ff; }
-[class*="st-key-notice-"] { background: #f0f7f1; border-left: 3px solid #91af98; padding: .6rem .8rem; }
+.st-key-activity-calendar [class*="st-key-calendar-day-"][class*="-saturday"] { background: var(--spark-f0f6ff); }
+[class*="st-key-notice-"] { background: var(--spark-f0f7f1); border-left: 3px solid var(--spark-91af98); padding: .6rem .8rem; }
 .st-key-month-nav [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .35rem !important; }
 .st-key-month-nav [data-testid="stColumn"] { min-width: 0 !important; width: 33.333% !important; flex: 1 1 0 !important; }
 .st-key-month-nav .stButton button { min-height: 34px; padding: .2rem .4rem; }
@@ -153,20 +301,20 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 [data-testid="stSidebarCollapseButton"] button {
     width: 48px !important; height: 48px !important;
     min-width: 48px !important; min-height: 48px !important;
-    background: #e8f5ec !important; color: #14532d !important;
-    border: 1px solid #bdcfc2 !important; border-radius: 10px !important;
+    background: var(--spark-e8f5ec) !important; color: var(--spark-14532d) !important;
+    border: 1px solid var(--spark-bdcfc2) !important; border-radius: 10px !important;
 }
 [data-testid="stExpandSidebarButton"] span,
 [data-testid="stSidebarCollapseButton"] button span {
-    font-size: 30px !important; color: #14532d !important;
+    font-size: 30px !important; color: var(--spark-14532d) !important;
 }
 [data-testid="stExpandSidebarButton"]:hover,
 [data-testid="stSidebarCollapseButton"] button:hover {
-    background: #d7eddf !important; border-color: #14532d !important;
+    background: var(--spark-d7eddf) !important; border-color: var(--spark-14532d) !important;
 }
 [data-testid="stExpandSidebarButton"]:focus-visible,
 [data-testid="stSidebarCollapseButton"] button:focus-visible {
-    outline: 3px solid #14532d !important; outline-offset: 2px;
+    outline: 3px solid var(--spark-14532d) !important; outline-offset: 2px;
 }
 [data-testid="stStatusWidget"], [data-testid="stMainMenu"],
 [data-testid="stGithubIcon"], [data-testid="stGitHubIcon"],
@@ -174,13 +322,13 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .stApp a[href^="https://github.com/"][target="_blank"]:has(svg) { display: none !important; }
 .st-key-shift_answers [data-testid="stExpander"] { border-radius: 6px; }
 .st-key-activity-detail-heading {
-    background: #f0f7f2; border-left: 4px solid #14532d;
+    background: var(--spark-f0f7f2); border-left: 4px solid var(--spark-14532d);
     padding: .8rem 1rem; border-radius: 8px;
 }
 .st-key-activity-detail-heading h3 { font-size: 1.35rem !important; margin: 0; padding: 0; }
 .st-key-activity-detail-heading [data-testid="stCaptionContainer"] p { font-size: .85rem; }
 .st-key-activity-detail-people, .st-key-activity-detail-memo {
-    padding: .8rem 1rem; border: 1px solid #dce9e1; border-radius: 8px;
+    padding: .8rem 1rem; border: 1px solid var(--spark-dce9e1); border-radius: 8px;
 }
 .st-key-activity-detail-people h3, .st-key-activity-detail-memo h3 {
     margin: 0; padding: 0; font-size: 1rem !important;
@@ -190,10 +338,10 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
     white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; line-height: 1.7;
 }
 .st-key-activity-detail-memo [data-testid="stForm"] { padding: 0; border: 0; box-shadow: none; }
-[class*="st-key-shift-event-session-"] { --shift-color: #e8f3eb; --shift-border: #8caf98; }
-[class*="st-key-shift-event-online-"] { --shift-color: #f0ebfa; --shift-border: #b9a5d8; }
-[class*="st-key-shift-event-offline-"] { --shift-color: #d6c5eb; --shift-border: #8566ac; }
-[class*="st-key-shift-event-other-"] { --shift-color: #eef0f2; --shift-border: #a4aab2; }
+[class*="st-key-shift-event-session-"] { --shift-color: var(--spark-e8f3eb); --shift-border: var(--spark-8caf98); }
+[class*="st-key-shift-event-online-"] { --shift-color: var(--spark-f0ebfa); --shift-border: var(--spark-b9a5d8); }
+[class*="st-key-shift-event-offline-"] { --shift-color: var(--spark-d6c5eb); --shift-border: var(--spark-8566ac); }
+[class*="st-key-shift-event-other-"] { --shift-color: var(--spark-eef0f2); --shift-border: var(--spark-a4aab2); }
 [class*="st-key-shift-event-"] [data-testid="stExpander"] { border-left: 4px solid var(--shift-border); }
 [class*="st-key-shift-event-"] [data-testid="stExpander"] summary { background: var(--shift-color); border-radius: 4px; }
 .st-key-shift_answers [data-testid="stVerticalBlock"] { gap: .5rem; }
@@ -225,6 +373,17 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
     .calendar-event-time { font-size: .55rem; white-space: nowrap; }
     .calendar-event-time .desktop-time { display: none; }
     .calendar-event-time .mobile-time { display: inline; }
+}
+
+:root:has(#spark-theme[data-theme="dark"]) .stButton button[kind="primary"],
+:root:has(#spark-theme[data-theme="dark"]) .stFormSubmitButton button[kind="primary"] {
+    background: #195b3c; border-color: #60b58c; color: #fff;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not(:has(#spark-theme[data-theme="light"])) .stButton button[kind="primary"],
+    :root:not(:has(#spark-theme[data-theme="light"])) .stFormSubmitButton button[kind="primary"] {
+        background: #195b3c; border-color: #60b58c; color: #fff;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -316,6 +475,59 @@ def verify_password(password, stored):
 
 def credential_fingerprint(value):
     return hashlib.sha256(str(value).encode('utf-8')).hexdigest()
+
+
+def validate_new_password(password):
+    if not isinstance(password, str) or not 12 <= len(password) <= 128:
+        raise ValueError('新しいパスワードは12〜128文字で設定してください。')
+
+
+def login_account_key(account):
+    canonical = university_email(account, allow_admin=True) or normalize_email(account)
+    return credential_fingerprint(canonical)
+
+
+def login_attempt_allowed(account, now=None):
+    moment = clock_time.time() if now is None else now
+    key = login_account_key(account)
+    with room_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        connection.execute('DELETE FROM login_attempts WHERE window_start<=? AND blocked_until<=?', (moment - 900, moment))
+        row = connection.execute('SELECT blocked_until FROM login_attempts WHERE account_hash=?', (key,)).fetchone()
+        return row is None or row[0] <= moment
+
+
+def record_login_failure(account, now=None):
+    moment = clock_time.time() if now is None else now
+    key = login_account_key(account)
+    with room_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        connection.execute('DELETE FROM login_attempts WHERE window_start<=? AND blocked_until<=?', (moment - 900, moment))
+        row = connection.execute('SELECT failures,window_start,blocked_until FROM login_attempts WHERE account_hash=?', (key,)).fetchone()
+        failures, start, blocked = row if row else (0, moment, 0)
+        if moment - start >= 900:
+            failures, start, blocked = 0, moment, 0
+        failures += 1
+        blocked = max(blocked, moment + 60) if failures >= 5 else blocked
+        connection.execute('INSERT OR REPLACE INTO login_attempts VALUES (?,?,?,?)', (key, failures, start, blocked))
+
+
+def clear_login_failures(account):
+    with room_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        connection.execute('DELETE FROM login_attempts WHERE account_hash=?', (login_account_key(account),))
+
+
+def login_storage_call(operation, account):
+    # 制限用データベースを読めない場合に、制限なしでログインを通さない。
+    try:
+        return operation(account)
+    except (sqlite3.Error, OSError):
+        st.error('現在ログインを確認できません。少し待って再度お試しください。')
+        st.stop()
+
+
+DUMMY_PASSWORD_HASH = 'pbkdf2_sha256$600000$' + '00' * 16 + '$' + '00' * 32
 
 
 def session_is_current():
@@ -697,6 +909,7 @@ def room_connection():
     connection.execute("CREATE TABLE IF NOT EXISTS settings (event TEXT PRIMARY KEY, config TEXT NOT NULL)")
     connection.execute("CREATE TABLE IF NOT EXISTS wishes (event TEXT, email TEXT, wanted INTEGER NOT NULL, PRIMARY KEY(event,email))")
     connection.execute("CREATE TABLE IF NOT EXISTS participation_reviews (email TEXT PRIMARY KEY, config TEXT NOT NULL)")
+    connection.execute("CREATE TABLE IF NOT EXISTS login_attempts (account_hash TEXT PRIMARY KEY, failures INTEGER NOT NULL, window_start REAL NOT NULL, blocked_until REAL NOT NULL)")
     connection.execute("""CREATE TABLE IF NOT EXISTS supporters (
         id TEXT PRIMARY KEY, event TEXT NOT NULL, name TEXT NOT NULL, kana TEXT NOT NULL,
         faculty TEXT NOT NULL, grade TEXT NOT NULL, english TEXT NOT NULL, parts TEXT NOT NULL,
@@ -1180,6 +1393,47 @@ def require_super():
         raise PermissionError('統括管理者だけが利用できます。')
 
 
+def save_admin_member_settings(target_email, new_email, host, teacher, reset_password='', expected_version=None):
+    require_super()
+    target_email = normalize_email(target_email)
+    new_email = university_email(new_email)
+    if not new_email:
+        raise ValueError('関西大学のメールアドレスを入力してください。')
+    if reset_password:
+        validate_new_password(reset_password)
+    members = load_csv(CSV_MEMBERS)
+    matches = members.index[members['メールアドレス'].apply(normalize_email).eq(target_email)]
+    if len(matches) != 1 or expected_version is None or activity_record_version(members.loc[matches[0]].to_dict()) != expected_version:
+        raise ValueError('メンバー情報が変更されたか削除されています。画面を更新してください。')
+    index = matches[0]
+    if new_email != target_email and members['メールアドレス'].apply(normalize_email).eq(new_email).any():
+        raise ValueError('そのメールアドレスは他のユーザーが既に使用しています。')
+    require_super()
+    members.loc[index, 'ホスト権限'] = parse_bool(host)
+    members.loc[index, '先生モード'] = parse_bool(teacher)
+    members.loc[index, 'メールアドレス'] = new_email
+    members.loc[index, '更新日時'] = datetime.now(timezone(timedelta(hours=9))).isoformat()
+    if reset_password:
+        members.loc[index, 'パスワードハッシュ'] = hash_password(reset_password)
+        members.loc[index, '初回パスワード変更済み'] = False
+    with room_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        if new_email != target_email:
+            connection.execute('UPDATE wishes SET email=? WHERE email=?', (new_email, target_email))
+            connection.execute('UPDATE participation_reviews SET email=? WHERE email=?', (new_email, target_email))
+            connection.execute('UPDATE supporters SET follow_email=?,updated=? WHERE follow_email=?',
+                               (new_email, datetime.now(timezone(timedelta(hours=9))).isoformat(), target_email))
+            for event, raw in connection.execute('SELECT event,config FROM settings').fetchall():
+                config = json.loads(raw)
+                for choice in config.get('choices', {}).values():
+                    for field in ['selected', 'candidates']:
+                        choice[field] = [new_email if email == target_email else email for email in choice.get(field, [])]
+                    choice['candidates'] = sorted(choice['candidates'])
+                connection.execute('UPDATE settings SET config=? WHERE event=?', (json.dumps(config, ensure_ascii=False), event))
+        require_super()
+        save_csv(members, CSV_MEMBERS)
+
+
 def load_participation_reviews():
     require_super()
     with room_connection() as connection:
@@ -1497,9 +1751,11 @@ if not st.session_state.logged_in:
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
-        input_email = st.text_input("利用者ID", placeholder="例：k123456",
+        input_email = st.text_input("利用者ID", placeholder="例：k123456", autocomplete="username",
+                                   key="login_username", max_chars=254,
                                    help="@kansai-u.ac.jp は自動で補います。統括管理者は「統括」と入力してください。")
-        input_pass = st.text_input("パスワード", type="password")
+        input_pass = st.text_input("パスワード", type="password", autocomplete="current-password",
+                                   key="login_password", max_chars=1024)
         
         login_btn = st.form_submit_button("ログイン", type="primary", width="stretch")
         
@@ -1516,9 +1772,16 @@ if not st.session_state.logged_in:
                 if norm_email is None:
                     st.error("関西大学のメールアドレスを入力してください。")
                     st.stop()
+                if len(input_pass) > 1024:
+                    st.error('利用者IDまたはパスワードが違います。')
+                    st.stop()
+                if not login_storage_call(login_attempt_allowed, norm_email):
+                    st.error('ログインの試行が続いたため、60秒ほど待って再度お試しください。')
+                    st.stop()
                 
                 # ① 統括管理者のログイン判定
                 if norm_email == normalize_email(SUPER_ADMIN_NAME) and SUPER_ADMIN_PASS and hmac.compare_digest(input_pass.encode('utf-8'), str(SUPER_ADMIN_PASS).encode('utf-8')):
+                    login_storage_call(clear_login_failures, norm_email)
                     st.session_state.logged_in = True
                     st.session_state.user_name = "統括管理者"
                     st.session_state.user_email = SUPER_ADMIN_NAME
@@ -1533,6 +1796,8 @@ if not st.session_state.logged_in:
                 else:
                     df_members = load_csv(CSV_MEMBERS)
                     if df_members.empty:
+                        verify_password(input_pass, DUMMY_PASSWORD_HASH)
+                        login_storage_call(record_login_failure, norm_email)
                         st.error("利用者IDまたはパスワードが違います。")
                     else:
                         # メールアドレスでユーザーを検索
@@ -1540,11 +1805,14 @@ if not st.session_state.logged_in:
                         matched_users = df_members[df_members['検索用メール'] == norm_email]
                         
                         if matched_users.empty:
+                            verify_password(input_pass, DUMMY_PASSWORD_HASH)
+                            login_storage_call(record_login_failure, norm_email)
                             st.error("利用者IDまたはパスワードが違います。")
                         else:
                             user_data = matched_users.iloc[-1]
                             # パスワードのハッシュ照合
                             if verify_password(input_pass, user_data['パスワードハッシュ']):
+                                login_storage_call(clear_login_failures, norm_email)
                                 # 認証後の再読込で、途中のリセットを上書きしない。
                                 latest_members = load_csv(CSV_MEMBERS)
                                 latest_idx = latest_members[latest_members['メールアドレス'].apply(normalize_email) == norm_email].index
@@ -1574,6 +1842,7 @@ if not st.session_state.logged_in:
                                 
                                 st.rerun()
                             else:
+                                login_storage_call(record_login_failure, norm_email)
                                 st.error("利用者IDまたはパスワードが違います。")
             else:
                 st.error("利用者IDとパスワードを入力してください。")
@@ -1586,16 +1855,19 @@ elif st.session_state.must_change_password:
     st.warning("セキュリティのため、初期パスワードからの変更が必要です。新しいパスワードを設定してください。")
     
     with st.form("force_password_change_form"):
-        new_pass = st.text_input("新しいパスワード", type="password")
-        new_pass_confirm = st.text_input("新しいパスワード（確認用）", type="password")
+        new_pass = st.text_input("新しいパスワード", type="password", autocomplete="new-password", max_chars=128)
+        new_pass_confirm = st.text_input("新しいパスワード（確認用）", type="password", autocomplete="new-password", max_chars=128)
         
         if st.form_submit_button("パスワードを変更してホームへ進む"):
+            try:
+                validate_new_password(new_pass)
+            except ValueError as error:
+                st.error(str(error))
+                st.stop()
             if not new_pass:
                 st.error("新しいパスワードを入力してください。")
             elif new_pass != new_pass_confirm:
                 st.error("パスワードが一致しません。")
-            elif not 12 <= len(new_pass) <= 128:
-                st.error("新しいパスワードは12〜128文字で設定してください。")
             else:
                 # パスワードを更新
                 df_members = load_csv(CSV_MEMBERS)
@@ -1655,14 +1927,14 @@ else:
         st.markdown("""
         <style>
         .st-key-page [role="radiogroup"] > label:nth-of-type(2) {
-            background: #fff0f0; border-left-color: #b42318; color: #b42318;
+            background: var(--spark-fff0f0); border-left-color: var(--spark-b42318); color: var(--spark-b42318);
         }
         .st-key-page [role="radiogroup"] > label:nth-of-type(2) p {
-            color: #b42318; font-weight: 700;
+            color: var(--spark-b42318); font-weight: 700;
         }
         .st-key-page [role="radiogroup"] > label:nth-of-type(2):hover,
         .st-key-page [role="radiogroup"] > label:nth-of-type(2):has(input:checked) {
-            background: #ffe0e0; border-left-color: #b42318;
+            background: var(--spark-ffe0e0); border-left-color: var(--spark-b42318);
         }
         </style>
         """, unsafe_allow_html=True)
@@ -1976,12 +2248,18 @@ else:
                     with col_r1:
                         new_name = st.text_input("名前（フルネーム）")
                         new_email = st.text_input("メールアドレス（@より前）", help="@kansai-u.ac.jp は自動で補います。")
-                        new_pass = st.text_input("初期パスワード", type="password")
+                        new_pass = st.text_input("初期パスワード", type="password", autocomplete="new-password", max_chars=128,
+                                                 help="12〜128文字で設定してください。")
                     with col_r2:
                         new_role = st.selectbox("役職", ROLES)
                         new_is_host = st.checkbox("このメンバーにホスト権限を付与する") if st.session_state.is_super else False
                     
                     if st.form_submit_button("メンバーを登録する"):
+                        try:
+                            validate_new_password(new_pass)
+                        except ValueError as error:
+                            st.error(str(error))
+                            st.stop()
                         df_members = load_csv(CSV_MEMBERS)
                         norm_new_email = university_email(new_email)
                         
@@ -2230,52 +2508,28 @@ else:
                         norm_target_email = normalize_email(target_email)
                         target_idx = df_members[df_members['メールアドレス'].apply(normalize_email) == norm_target_email].index
                         target_name = df_members.loc[target_idx, '名前'].values[0]
-                        current_status = parse_bool(df_members.loc[target_idx, 'ホスト権限'].values[0])
-                        
+                        current_member = df_members.loc[target_idx[-1]].to_dict()
+                        version = activity_record_version(current_member)
+                        token = hashlib.sha256(f'{norm_target_email}|{version}'.encode()).hexdigest()[:16]
                         st.write(f"**{target_name} さんの設定変更**")
-                        
-                        # 権限変更
-                        new_status = st.checkbox(f"👑 ホスト権限を付与する", value=current_status)
-                        teacher_status = st.checkbox("🏫 池澤先生モードを付与する", value=parse_bool(df_members.loc[target_idx, '先生モード'].values[0]),
-                                                     help="ホスト権限とは独立しています。合同研究室の利用許可と利用者の選定ができます。")
-                        
-                        # メアド変更
-                        new_email_edit = st.text_input("メールアドレスの変更（@より前）", value=target_email.split("@")[0],
-                                                       help="@kansai-u.ac.jp は自動で補います。")
-                        
-                        # パスワードリセット
-                        reset_pass = st.text_input("初期パスワードの再設定（変更する場合のみ入力）", type="password")
-                        
-                        if st.button("設定を更新する"):
-                            new_email_edit = university_email(new_email_edit)
-                            # メアド変更時の重複チェック
-                            if not new_email_edit:
-                                st.error("関西大学のメールアドレスを入力してください。")
-                            elif normalize_email(new_email_edit) != norm_target_email and normalize_email(new_email_edit) in df_members['メールアドレス'].apply(normalize_email).values:
-                                st.error("そのメールアドレスは他のユーザーが既に使用しています。")
-                            else:
-                                df_members.loc[target_idx, 'ホスト権限'] = new_status
-                                df_members.loc[target_idx, '先生モード'] = teacher_status
-                                if normalize_email(new_email_edit) != norm_target_email:
-                                    with room_connection() as connection:
-                                        connection.execute("UPDATE wishes SET email=? WHERE email=?", (normalize_email(new_email_edit), norm_target_email))
-                                        connection.execute("UPDATE participation_reviews SET email=? WHERE email=?", (normalize_email(new_email_edit), norm_target_email))
-                                        connection.execute('UPDATE supporters SET follow_email=?,updated=? WHERE follow_email=?',
-                                                           (normalize_email(new_email_edit), datetime.now(timezone(timedelta(hours=9))).isoformat(), norm_target_email))
-                                        for event, raw in connection.execute("SELECT event,config FROM settings").fetchall():
-                                            config = json.loads(raw)
-                                            for choice in config.get("choices", {}).values():
-                                                for field in ["selected", "candidates"]:
-                                                    choice[field] = [normalize_email(new_email_edit) if email == norm_target_email else email for email in choice.get(field, [])]
-                                                choice["candidates"] = sorted(choice["candidates"])
-                                            connection.execute("UPDATE settings SET config=? WHERE event=?", (json.dumps(config, ensure_ascii=False), event))
-                                df_members.loc[target_idx, 'メールアドレス'] = new_email_edit
-                                
-                                if reset_pass:
-                                    df_members.loc[target_idx, 'パスワードハッシュ'] = hash_password(reset_pass)
-                                    df_members.loc[target_idx, '初回パスワード変更済み'] = False
-                                
-                                save_csv(df_members, CSV_MEMBERS)
-                                st.success(f"✅ {target_name} さんの設定を更新しました！")
+                        with st.form('admin_member_form_' + token):
+                            new_status = st.checkbox("👑 ホスト権限を付与する", value=parse_bool(current_member.get('ホスト権限', False)), key='admin_host_' + token)
+                            teacher_status = st.checkbox("🏫 池澤先生モードを付与する", value=parse_bool(current_member.get('先生モード', False)), key='admin_teacher_' + token,
+                                                         help="ホスト権限とは独立しています。合同研究室の利用許可と利用者の選定ができます。")
+                            new_email_edit = st.text_input("メールアドレスの変更（@より前）", value=target_email.split("@")[0], key='admin_email_' + token,
+                                                           help="@kansai-u.ac.jp は自動で補います。")
+                            reset_pass = st.text_input("初期パスワードの再設定（変更する場合のみ入力）", type="password", autocomplete="new-password",
+                                                       max_chars=128, key='admin_reset_' + token, help="変更する場合は12〜128文字で設定してください。")
+                            update_member = st.form_submit_button("設定を更新する")
+                        if update_member:
+                            try:
+                                save_admin_member_settings(norm_target_email, new_email_edit, new_status, teacher_status,
+                                                           reset_password=reset_pass, expected_version=version)
+                                st.session_state.admin_member_notice = f"{target_name} さんの設定を更新しました。"
+                                st.rerun()
+                            except (PermissionError, ValueError) as error:
+                                st.error(str(error))
+                        if st.session_state.get('admin_member_notice'):
+                            st.success(st.session_state.pop('admin_member_notice'))
                 else:
                     info_message("登録されているユーザーがいません。")

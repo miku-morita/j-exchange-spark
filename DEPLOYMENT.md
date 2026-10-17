@@ -74,5 +74,11 @@ GitHubで問題の変更をrevertし、公開対象ブランチへpushします�
 - [データ保存・接続](https://docs.streamlit.io/develop/concepts/connections/connecting-to-data)
 # ロゴ画像の公開
 
+## ライト／ダークテーマの更新
+
+テーマ変更を反映する際は、`app.py` に加え、`.streamlit/config.toml` もGitHubの同じパスへ更新してください。ライトとダークの両方を設定し、アプリ側の配色も切り替えます。サーバー設定の反映にはアプリの再起動が必要です。
+
+ログインの利用者ID欄は `autocomplete="username"`、パスワード欄は `autocomplete="current-password"` にしています。iPhoneの「パスワード」に保存する際は、公開アプリのURLと利用者ID（k番号）を対応させます。保存候補の提示・自動保存はiOS/Safariの設定と判定にも依存するため、実機で確認してください。
+
 アプリのロゴとブラウザのタブのアイコンには `丸型_白枠影あり.svg` を使います。GitHubで `app.py` と同じフォルダーへ、このSVGファイルもアップロードしてください。画像がない場合も起動できますが、ロゴは表示されず、タブには代替アイコンを使います。
 

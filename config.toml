@@ -1,7 +1,21 @@
 [theme]
-base = "light"
+font = "sans serif"
+
+[theme.light]
 primaryColor = "#14532D"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F4F8F5"
 textColor = "#24352C"
-font = "sans serif"
+
+[theme.dark]
+primaryColor = "#89D5AA"
+backgroundColor = "#17211E"
+secondaryBackgroundColor = "#1D2D24"
+textColor = "#E7F0EB"
+
+[client]
+toolbarMode = "minimal"
+
+[server]
+enableXsrfProtection = true
+enableCORS = true
