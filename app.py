@@ -11,6 +11,7 @@ import calendar
 import csv
 import json
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import datetime, time, date, timedelta, timezone
@@ -198,7 +199,14 @@ h3 { font-size: 1.15rem !important; margin-top: .7rem; }
 .st-key-shift_answers [data-testid="stVerticalBlock"] { gap: .5rem; }
 .st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .5rem !important; }
 .st-key-shift_answers [class*="st-key-shift-parts-"] [data-testid="stColumn"] { min-width: 0 !important; width: 50% !important; flex: 1 1 0 !important; }
+.st-key-admin-navigation { max-width: 960px; }
+.st-key-admin-navigation .stButton button { min-height: 64px; justify-content: flex-start; padding: .7rem 1rem; border-radius: 10px; }
+.st-key-admin-navigation .stButton button p { font-size: .95rem; line-height: 1.35; }
 @media (max-width: 640px) {
+    .st-key-admin-navigation [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .5rem !important; }
+    .st-key-admin-navigation [data-testid="stColumn"] { min-width: 0 !important; width: 50% !important; flex: 1 1 0 !important; }
+    .st-key-admin-navigation .stButton button { min-height: 60px; padding: .6rem .5rem; }
+    .st-key-admin-navigation .stButton button p { font-size: .85rem; }
     [data-testid="stMainBlockContainer"] { padding-left: .75rem; padding-right: .75rem; }
     [data-testid="stMainBlockContainer"] { padding-top: 1.5rem; }
     .spark-welcome { padding: 1.3rem; }
@@ -573,6 +581,51 @@ def change_calendar_month(offset):
         st.session_state.calendar_month = date(index // 12 + 1, index % 12 + 1, 1)
 
 
+def select_admin_action(section):
+    st.session_state.admin_section = section
+
+
+def show_admin_navigation(options):
+    if st.session_state.get('admin_section') not in options:
+        st.session_state.admin_section = '管理トップ'
+    with st.expander('管理メニューを切り替える', expanded=False):
+        selected = st.selectbox('管理メニュー', options, key='admin_section')
+    if selected != '管理トップ':
+        st.button('管理トップへ戻る', icon=':material/arrow_back:', key='admin_back',
+                  on_click=select_admin_action, args=('管理トップ',))
+        return selected
+    cards = {
+        '日程設定': (':material/event:', '予定の追加・変更、回答期限'),
+        'シフト回答状況': (':material/fact_check:', '回答・参加希望・未回答の確認'),
+        '単発サポーター': (':material/groups:', '体験参加者とフォロー担当'),
+        'メンバー名簿': (':material/badge:', 'メンバーの登録情報を確認'),
+        'メンバー登録': (':material/person_add:', '新しいメンバーを登録'),
+        '権限一覧': (':material/admin_panel_settings:', 'ホスト・先生モードを確認'),
+        '参加意思の確認': (':material/person_search:', '参加希望の確認と例外記録'),
+        '管理者設定': (':material/settings:', '権限変更・パスワードの再設定'),
+    }
+    with st.container(key='admin-navigation'):
+        for heading, sections in [
+            ('活動', ['日程設定', 'シフト回答状況', '単発サポーター']),
+            ('メンバー', ['メンバー名簿', 'メンバー登録', '権限一覧']),
+            ('統括向け', ['参加意思の確認', '管理者設定']),
+        ]:
+            allowed = [section for section in sections if section in options]
+            if not allowed:
+                continue
+            st.subheader(heading)
+            for offset in range(0, len(allowed), 2):
+                for column, section in zip(st.columns(2, gap='small'), allowed[offset:offset + 2]):
+                    icon, description = cards[section]
+                    column.button(section, icon=icon, help=description, width='stretch',
+                                  key=f'admin_nav_{section}', on_click=select_admin_action, args=(section,))
+        if '削除' in options:
+            with st.expander('削除の操作', expanded=False):
+                st.button('削除画面を開く', icon=':material/delete_outline:', width='stretch',
+                          key='admin_nav_削除', on_click=select_admin_action, args=('削除',))
+    return selected
+
+
 def change_page():
     st.session_state.close_sidebar_after_navigation = True
     st.session_state.pop('selected_activity', None)
@@ -644,12 +697,203 @@ def room_connection():
     connection.execute("CREATE TABLE IF NOT EXISTS settings (event TEXT PRIMARY KEY, config TEXT NOT NULL)")
     connection.execute("CREATE TABLE IF NOT EXISTS wishes (event TEXT, email TEXT, wanted INTEGER NOT NULL, PRIMARY KEY(event,email))")
     connection.execute("CREATE TABLE IF NOT EXISTS participation_reviews (email TEXT PRIMARY KEY, config TEXT NOT NULL)")
+    connection.execute("""CREATE TABLE IF NOT EXISTS supporters (
+        id TEXT PRIMARY KEY, event TEXT NOT NULL, name TEXT NOT NULL, kana TEXT NOT NULL,
+        faculty TEXT NOT NULL, grade TEXT NOT NULL, english TEXT NOT NULL, parts TEXT NOT NULL,
+        follow_email TEXT NOT NULL, follow_method TEXT NOT NULL, next_intent TEXT NOT NULL,
+        reflection TEXT NOT NULL, updated TEXT NOT NULL)""")
     connection.commit()
     try:
         with connection:
             yield connection
     finally:
         connection.close()
+
+
+SUPPORTER_PARTS = ["前半", "後半", "前半・後半"]
+SUPPORTER_ENGLISH = ["未確認", "簡単な会話に挑戦したい", "日常会話ができる", "英語で会話できる"]
+SUPPORTER_NEXT_INTENT = ["未確認", "希望する", "希望しない", "検討中"]
+
+
+def load_supporters(event, include_private=False):
+    """ログインメンバーには公開列だけを返す。管理者情報は別の列指定で取得する。"""
+    if not session_is_current():
+        raise PermissionError("ログインしてから確認してください。")
+    if include_private and not can_edit_activity_memo():
+        raise PermissionError("管理者用の情報はホストと統括管理者だけが確認できます。")
+    if not Path(ROOM_DB).is_file():
+        return []
+    public_columns = ['id', 'event', 'name', 'kana', 'faculty', 'grade', 'english', 'parts', 'follow_email', 'follow_method']
+    columns = public_columns + (['next_intent', 'reflection', 'updated'] if include_private else [])
+    with room_connection() as connection:
+        records = connection.execute(f"SELECT {','.join(columns)} FROM supporters WHERE event=? ORDER BY rowid", (event,)).fetchall()
+    members = load_csv(CSV_MEMBERS)
+    names = {normalize_email(member['メールアドレス']): str(member['名前']) for member in members.to_dict('records')}
+    result = []
+    for values in records:
+        record = dict(zip(columns, values))
+        record['follow_name'] = names.get(record['follow_email'], '未指定')
+        if not include_private:
+            del record['follow_email']
+        result.append(record)
+    return result
+
+
+def supporter_events():
+    if not can_edit_activity_memo():
+        raise PermissionError("ホストと統括管理者だけが利用できます。")
+    if not Path(ROOM_DB).is_file():
+        return []
+    with room_connection() as connection:
+        return [event for event, in connection.execute('SELECT DISTINCT event FROM supporters')]
+
+
+def save_supporter(event, data, supporter_id=None, expected_updated=None):
+    if not can_edit_activity_memo():
+        raise PermissionError("単発サポーターを管理できるのはホストと統括管理者だけです。")
+    row = next((row for row in activity_rows() if row['label'] == event), None)
+    if row is None:
+        raise ValueError("予定が変更されたか削除されています。画面を開き直してください。")
+    fields = ['name', 'kana', 'faculty', 'grade', 'english', 'parts', 'follow_email', 'follow_method', 'next_intent', 'reflection']
+    clean = {field: str(data.get(field, '')).strip() for field in fields}
+    clean['follow_email'] = normalize_email(clean['follow_email']) if clean['follow_email'] else ''
+    faculties = ['未確認'] + [faculty for faculty in KANSAI_UNI_HIERARCHY if faculty != '選択してください']
+    if not clean['name'] or len(clean['name']) > 100 or len(clean['kana']) > 100:
+        raise ValueError("名前は必須です。名前・ふりがなは100文字以内にしてください。")
+    if clean['faculty'] not in faculties or clean['grade'] not in ['未確認'] + GRADES:
+        raise ValueError("学部・学年を確認してください。不明な場合は未確認を選べます。")
+    if clean['english'] not in SUPPORTER_ENGLISH or clean['parts'] not in SUPPORTER_PARTS or clean['next_intent'] not in SUPPORTER_NEXT_INTENT:
+        raise ValueError("英語会話の目安・参加時間・次回参加希望を確認してください。")
+    if len(clean['follow_method']) > 500 or len(clean['reflection']) > 2000:
+        raise ValueError("フォロー方法は500文字、振り返りは2000文字以内にしてください。")
+    members = load_csv(CSV_MEMBERS)
+    if clean['follow_email'] and clean['follow_email'] not in members['メールアドレス'].apply(normalize_email).values:
+        raise ValueError("フォロー担当が変更されています。選び直してください。")
+    with room_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        if supporter_id:
+            stored = connection.execute('SELECT event,updated FROM supporters WHERE id=?', (supporter_id,)).fetchone()
+            if stored is None or stored[0] != event or expected_updated is None or stored[1] != expected_updated:
+                raise ValueError("他の管理者が情報を変更したか削除しました。画面を更新してください。")
+        elif row['kind'] != 'セッション':
+            raise ValueError("単発サポーターはセッションに登録してください。")
+        identifier = supporter_id or str(uuid.uuid4())
+        updated = datetime.now(timezone(timedelta(hours=9))).isoformat()
+        if supporter_id:
+            assignments = ','.join(f'{field}=?' for field in fields)
+            connection.execute(f'UPDATE supporters SET {assignments},updated=? WHERE id=?', tuple(clean[field] for field in fields) + (updated, identifier))
+        else:
+            columns = ['id', 'event'] + fields + ['updated']
+            connection.execute(f"INSERT INTO supporters ({','.join(columns)}) VALUES ({','.join('?' for _ in columns)})", (identifier, event) + tuple(clean[field] for field in fields) + (updated,))
+    return identifier
+
+
+def delete_supporter(supporter_id, expected_updated=None):
+    if not can_edit_activity_memo():
+        raise PermissionError("単発サポーターを削除できるのはホストと統括管理者だけです。")
+    with room_connection() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        stored = connection.execute('SELECT updated FROM supporters WHERE id=?', (supporter_id,)).fetchone()
+        if stored is None or expected_updated is None or stored[0] != expected_updated:
+            raise ValueError("情報が変更されたか削除されています。画面を更新してください。")
+        connection.execute('DELETE FROM supporters WHERE id=?', (supporter_id,))
+
+
+def show_supporter_summary(event):
+    if not session_is_current():
+        return
+    supporters = load_supporters(event)
+    if not supporters:
+        return
+    with st.expander(f"単発サポーター（{len(supporters)}名）", expanded=False):
+        for person in supporters:
+            with st.container(border=True):
+                st.text(person['name'] + (f"（{person['kana']}）" if person['kana'] else ''))
+                st.caption(f"{person['faculty']} · {person['grade']} · {person['parts']}")
+                st.text(f"英語会話の目安：{person['english']}\nフォロー担当：{person['follow_name']}")
+                if person['follow_method']:
+                    st.text("当日のフォロー方法：" + person['follow_method'])
+
+
+def show_supporter_manager():
+    if not can_edit_activity_memo():
+        st.error("ホストと統括管理者だけが利用できます。")
+        return
+    st.subheader("単発サポーター")
+    activities = activity_rows()
+    existing_events = set(supporter_events())
+    events = [row for row in activities if row['kind'] == 'セッション' or row['label'] in existing_events]
+    if not events:
+        info_message("先にセッションの日程を追加してください。")
+        return
+    labels = [row['label'] for row in events]
+    if st.session_state.get('supporter_event') not in labels:
+        st.session_state.supporter_event = labels[0]
+    event = st.selectbox("対象のセッション", labels, key='supporter_event')
+    row = next(row for row in events if row['label'] == event)
+    if row['kind'] != 'セッション':
+        st.caption("種類が変更された予定です。登録済みの情報を確認・編集できます。新規登録はセッションで行ってください。")
+    records = load_supporters(event, include_private=True)
+    if records:
+        display = [{'名前': person['name'], '参加時間': person['parts'], 'フォロー担当': person['follow_name'], '次回参加希望（管理者用）': person['next_intent']} for person in records]
+        st.dataframe(pd.DataFrame(display), hide_index=True, width='stretch')
+    else:
+        st.caption("まだ登録されていません。")
+    by_id = {person['id']: person for person in records}
+    options = (['new'] if row['kind'] == 'セッション' else []) + list(by_id)
+    if not options:
+        return
+    if st.session_state.get('supporter_selection') not in options:
+        st.session_state.supporter_selection = options[0]
+    selected = st.selectbox("登録・編集するサポーター", options, key='supporter_selection',
+                            format_func=lambda identifier: '新規登録' if identifier == 'new' else f"{by_id[identifier]['name']} · {by_id[identifier]['parts']} · {identifier[:8]}")
+    current = by_id.get(selected, {})
+    version = current.get('updated', str(st.session_state.get('supporter_new_generation', 0)))
+    token = hashlib.sha256(f'{event}|{selected}|{version}'.encode()).hexdigest()[:16]
+    members = load_csv(CSV_MEMBERS)
+    member_names = {normalize_email(member['メールアドレス']): str(member['名前']) for member in members.to_dict('records')}
+    follow_options = [''] + list(member_names)
+    faculties = ['未確認'] + [faculty for faculty in KANSAI_UNI_HIERARCHY if faculty != '選択してください']
+    grades = ['未確認'] + GRADES
+    def select_index(options, value):
+        return options.index(value) if value in options else 0
+    with st.form('supporter_form_' + token):
+        st.caption("以下はログインメンバーに公開されます。個人的な事情や連絡先は入力しないでください。")
+        name = st.text_input("名前", value=current.get('name', ''), max_chars=100, key='supporter_name_' + token)
+        kana = st.text_input("ふりがな", value=current.get('kana', ''), max_chars=100, key='supporter_kana_' + token)
+        faculty = st.selectbox("学部", faculties, index=select_index(faculties, current.get('faculty')), key='supporter_faculty_' + token)
+        grade = st.selectbox("学年", grades, index=select_index(grades, current.get('grade')), key='supporter_grade_' + token)
+        english = st.selectbox("英語会話の目安", SUPPORTER_ENGLISH, index=select_index(SUPPORTER_ENGLISH, current.get('english')), key='supporter_english_' + token)
+        parts = st.selectbox("参加時間", SUPPORTER_PARTS, index=select_index(SUPPORTER_PARTS, current.get('parts', '前半・後半')), key='supporter_parts_' + token)
+        follow = st.selectbox("フォロー担当", follow_options, index=select_index(follow_options, current.get('follow_email')),
+                              format_func=lambda email: f"{member_names[email]}（{email.split('@')[0]}）" if email else '未指定', key='supporter_follow_' + token)
+        method = st.text_area("当日のフォロー方法（公開）", value=current.get('follow_method', ''), max_chars=500, key='supporter_method_' + token)
+        st.divider()
+        st.caption("ここからはホスト・統括管理者だけに表示されます。")
+        next_intent = st.selectbox("次回参加希望（管理者用）", SUPPORTER_NEXT_INTENT, index=select_index(SUPPORTER_NEXT_INTENT, current.get('next_intent')), key='supporter_next_' + token)
+        reflection = st.text_area("振り返り（管理者用）", value=current.get('reflection', ''), max_chars=2000, key='supporter_reflection_' + token)
+        saved = st.form_submit_button("サポーター情報を保存", type='primary')
+    if saved:
+        data = dict(name=name, kana=kana, faculty=faculty, grade=grade, english=english, parts=parts,
+                    follow_email=follow, follow_method=method, next_intent=next_intent, reflection=reflection)
+        try:
+            save_supporter(event, data, supporter_id=None if selected == 'new' else selected, expected_updated=current.get('updated'))
+            st.session_state.supporter_notice = 'サポーター情報を保存しました。'
+            st.session_state.supporter_new_generation = st.session_state.get('supporter_new_generation', 0) + 1
+            st.rerun()
+        except (PermissionError, ValueError) as error:
+            st.error(str(error))
+    if selected != 'new':
+        confirmed = st.checkbox(f"{current['name']} さんの情報を削除することを確認しました", key='supporter_delete_confirm_' + token)
+        if st.button("このサポーターを削除", disabled=not confirmed, key='supporter_delete_' + token):
+            try:
+                delete_supporter(selected, expected_updated=current['updated'])
+                st.session_state.supporter_notice = 'サポーター情報を削除しました。'
+                st.rerun()
+            except (PermissionError, ValueError) as error:
+                st.error(str(error))
+    if st.session_state.get('supporter_notice'):
+        st.success(st.session_state.pop('supporter_notice'))
 
 
 def room_config(label):
@@ -785,6 +1029,8 @@ def show_room_manager(row, demo=False):
     if not can_manage_room():
         st.error("統括管理者と先生モードだけが利用できます。")
         return
+    if not demo and st.session_state.pop('room_saved_notice', False):
+        st.success('研究室の設定を保存しました。カレンダーの詳細にも反映されます。')
     prefix = "room_demo" if demo else "room_live"
     if demo:
         st.warning("デモ：架空のメンバーを使用します。本番データには保存しません。")
@@ -822,6 +1068,7 @@ def show_room_manager(row, demo=False):
                     st.session_state.room_demo_config = new
                 else:
                     save_room_config(row["label"], new, candidates, expected_config=config)
+                    st.session_state.room_saved_notice = True
                 st.rerun()
             except (PermissionError, ValueError) as error:
                 st.error(str(error))
@@ -859,10 +1106,12 @@ def edit_activity(old_label, changes, expected_version):
     with room_connection() as connection:
         connection.execute('BEGIN IMMEDIATE')
         if new_label != old_label:
-            if connection.execute('SELECT 1 FROM settings WHERE event=? UNION SELECT 1 FROM wishes WHERE event=?', (new_label, new_label)).fetchone():
-                raise ValueError("変更先に研究室の予約データがあります。別の日程を指定してください。")
+            if connection.execute('SELECT 1 FROM settings WHERE event=? UNION SELECT 1 FROM wishes WHERE event=? UNION SELECT 1 FROM supporters WHERE event=?', (new_label, new_label, new_label)).fetchone():
+                raise ValueError("変更先に研究室やサポーターのデータがあります。別の日程を指定してください。")
             connection.execute('UPDATE settings SET event=? WHERE event=?', (new_label, old_label))
             connection.execute('UPDATE wishes SET event=? WHERE event=?', (new_label, old_label))
+            connection.execute('UPDATE supporters SET event=?,updated=? WHERE event=?',
+                               (new_label, datetime.now(timezone(timedelta(hours=9))).isoformat(), old_label))
         try:
             save_csv(updated_dates, CSV_DATES)
             if not schedule.empty or os.path.exists(CSV_SCHEDULE):
@@ -887,6 +1136,7 @@ def delete_activities(labels):
         for label in selected:
             connection.execute('DELETE FROM settings WHERE event=?', (label,))
             connection.execute('DELETE FROM wishes WHERE event=?', (label,))
+            connection.execute('DELETE FROM supporters WHERE event=?', (label,))
         save_csv(dates[~dates['日程'].isin(selected)], CSV_DATES)
         if columns:
             save_csv(schedule.drop(columns=columns), CSV_SCHEDULE)
@@ -908,6 +1158,8 @@ def delete_members(emails):
         for email in members.loc[selected, 'メールアドレス']:
             connection.execute('DELETE FROM wishes WHERE email=?', (normalize_email(email),))
             connection.execute('DELETE FROM participation_reviews WHERE email=?', (normalize_email(email),))
+            connection.execute("UPDATE supporters SET follow_email='',updated=? WHERE follow_email=?",
+                               (datetime.now(timezone(timedelta(hours=9))).isoformat(), normalize_email(email)))
         for event, raw in connection.execute('SELECT event,config FROM settings').fetchall():
             config = json.loads(raw)
             choices = config.get('choices', {})
@@ -1110,6 +1362,8 @@ def close_activity_details():
 
 @st.dialog("予定の詳細", width="large", on_dismiss=close_activity_details)
 def show_activity_details(label):
+    if st.button('更新', icon=':material/refresh:', key='activity_refresh'):
+        st.rerun(scope='app')
     row = next((r for r in activity_rows() if r["label"] == label), None)
     if row is None:
         info_message("この予定は削除されています。")
@@ -1165,6 +1419,7 @@ def show_activity_details(label):
             st.text(row["memo"])
         else:
             st.caption("なし")
+    show_supporter_summary(label)
     if room_eligible(row):
         with st.expander("合同研究室の利用状況", expanded=False):
             show_room_summary(row, room_candidates(row, load_csv(CSV_MEMBERS), load_csv(CSV_SCHEDULE), room_wishes(label)), room_config(label))
@@ -1430,12 +1685,18 @@ else:
                                  format_func=lambda page: page_labels[page], on_change=change_page)
     close_sidebar_after_navigation()
     st.sidebar.divider()
+    if st.sidebar.button('更新', icon=':material/refresh:', key='refresh_data',
+                         help='予定・シフト・研究室の最新情報を読み直します。'):
+        st.rerun()
     if st.sidebar.button("ログアウト"):
         st.session_state.clear()
         st.rerun()
 
     if view_mode == "🏠 ホーム":
         st.title("活動カレンダー")
+        if st.button('更新', icon=':material/refresh:', key='calendar_refresh',
+                     help='他のメンバーや先生が保存した最新情報を表示します。'):
+            st.rerun()
         if not st.session_state.is_super and profile_missing_fields(current_user):
             info_message("初回の方は「自分の登録情報」で、ふりがな〜学科を入力して保存してください。")
             st.button("自分の登録情報を入力する", on_click=go_to_profile)
@@ -1517,6 +1778,9 @@ else:
         else:
             eligible = [row for row in activities if room_eligible(row)]
             if eligible:
+                labels = [row['label'] for row in eligible]
+                if st.session_state.get('room_event') not in labels:
+                    st.session_state.room_event = labels[0]
                 label = st.selectbox("活動を選択", [row["label"] for row in eligible], key="room_event")
                 show_room_manager(next(row for row in eligible if row["label"] == label))
             else:
@@ -1696,10 +1960,10 @@ else:
             st.stop()
         st.title("👑 管理")
         
-        admin_options = ['日程設定', 'シフト回答状況', 'メンバー名簿', '権限一覧', 'メンバー登録', '削除']
+        admin_options = ['管理トップ', '日程設定', 'シフト回答状況', '単発サポーター', 'メンバー名簿', '権限一覧', 'メンバー登録', '削除']
         if st.session_state.is_super:
             admin_options.extend(['参加意思の確認', '管理者設定'])
-        admin_action = st.selectbox('管理メニュー', admin_options, key='admin_section')
+        admin_action = show_admin_navigation(admin_options)
 
         # ホストも一般メンバーを登録できる。権限付与は統括だけに限定する。
         if st.session_state.is_host:
@@ -1743,6 +2007,9 @@ else:
                             df_members = pd.concat([df_members, new_member], ignore_index=True)
                             save_csv(df_members, CSV_MEMBERS)
                             st.success(f"✅ {new_name} さん（{new_email}）を登録しました！本人に初期パスワードを伝えてください。")
+
+        if admin_action == '単発サポーター':
+            show_supporter_manager()
 
         if admin_action == '権限一覧':
             st.subheader('権限を持つメンバー')
@@ -1993,6 +2260,8 @@ else:
                                     with room_connection() as connection:
                                         connection.execute("UPDATE wishes SET email=? WHERE email=?", (normalize_email(new_email_edit), norm_target_email))
                                         connection.execute("UPDATE participation_reviews SET email=? WHERE email=?", (normalize_email(new_email_edit), norm_target_email))
+                                        connection.execute('UPDATE supporters SET follow_email=?,updated=? WHERE follow_email=?',
+                                                           (normalize_email(new_email_edit), datetime.now(timezone(timedelta(hours=9))).isoformat(), norm_target_email))
                                         for event, raw in connection.execute("SELECT event,config FROM settings").fetchall():
                                             config = json.loads(raw)
                                             for choice in config.get("choices", {}).values():
